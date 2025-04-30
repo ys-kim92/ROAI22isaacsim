@@ -9,3 +9,6 @@
 
 from isaacsim.examples.interactive.base_sample.base_sample import BaseSample
 from isaacsim.examples.interactive.base_sample.base_sample_extension import BaseSampleUITemplate
+
+from isaacsim.examples.interactive.base_sample.roai_base_sample import RoaiBaseSample
+from isaacsim.examples.interactive.base_sample.roai_base_sample_extension import RoaiBaseSampleUITemplate
