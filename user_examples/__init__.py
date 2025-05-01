@@ -24,3 +24,6 @@ from isaacsim.examples.interactive.user_examples.roai_test3_extension import Roa
 
 from isaacsim.examples.interactive.user_examples.roai_test4 import RoaiTest4
 from isaacsim.examples.interactive.user_examples.roai_test4_extension import RoaiTest4Extension
+
+from isaacsim.examples.interactive.user_examples.roai_framework import GoalValidation
+from isaacsim.examples.interactive.user_examples.roai_framework_extension import GoalValidationExtension
