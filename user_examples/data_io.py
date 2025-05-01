@@ -1,25 +1,30 @@
-from isaacsim.examples.interactive.base_sample import BaseSample
+from isaacsim.examples.interactive.base_sample import RoaiBaseSample
 
 
-class DataIO(BaseSample):
-    def _on_logging_event(self):
+class DataIO(RoaiBaseSample):
+    def _on_logging_event(self, log_freq):
         world = self.get_world()
         data_logger = world.get_data_logger()
-        if not world.get_data_logger().is_started():
-            robot_name = self._task_params["robot_name"]["value"]
-            target_name = self._task_params["target_name"]["value"]
 
-            def frame_logging_func(tasks, scene):
-                return {
-                    "current_joint_positions": scene.get_object(robot_name).get_joint_positions().tolist(),
-                    "applied_joint_positions": scene.get_object(robot_name)
-                    .get_applied_action()
-                    .joint_positions.tolist(),
-                    "goal_position": scene.get_object(target_name).get_world_pose()[0].tolist(),
-                }
+        if not world.get_data_logger().is_started():
+            def frame_logging_func(tasks, scene):               
+                data = {}
+
+                for i, params in enumerate(self._task_params):
+                    target_name = params["target_name"]["value"]
+                    target = scene.get_object(target_name)
+                    target_pos, target_ori = target.get_world_pose()
+                    robot_name = params["robot_name"]["value"]
+                    robot = scene.get_object(robot_name)
+                    
+                    data[f"robot{i}_goal_position"] = target_pos.tolist()
+                    data[f"robot{i}_goal_orientation"] = target_ori.tolist()
+                    data[f"robot{i}_current_joint_positions"] = robot.get_joint_positions().tolist()
+                    data[f"robot{i}_applied_joint_positions"] = robot.get_applied_action().joint_positions.tolist()
+
+                return data
 
             data_logger.add_data_frame_logging_func(frame_logging_func)
-
             data_logger.start()
 
 

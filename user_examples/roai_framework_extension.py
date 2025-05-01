@@ -58,7 +58,7 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
 
         with extra_stacks:
             with ui.CollapsableFrame(
-                title="Data Logging",
+                title="Data Log Option",
                 width=ui.Fraction(0.33),
                 height=0,
                 visible=True,
