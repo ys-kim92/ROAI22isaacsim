@@ -12,6 +12,9 @@ from isaacsim.examples.interactive.base_sample import RoaiBaseSample
 from isaacsim.robot.manipulators.examples.franka.controllers.stacking_controller import StackingController
 from isaacsim.robot.manipulators.examples.franka.tasks import Stacking
 
+#+++++ Custom 모듈
+from isaacsim.examples.interactive.user_examples.data_io import DataIO
+
 
 class GoalValidation(RoaiBaseSample):
     def __init__(self) -> None:
@@ -58,10 +61,15 @@ class GoalValidation(RoaiBaseSample):
 
     #+++++ Start 버튼 동작 후 실행
 
-    async def _on_start_event_async(self):
+    async def _on_task_event_async(self, val, log_path):
         world = self.get_world()
-        world.add_physics_callback("sim_step", self._physics_step)
-        await world.play_async()
+        if val:
+            world.add_physics_callback("sim_step", self._physics_step)
+            await world.play_async()
+            DataIO._on_logging_event(self)
+        else:
+            world.remove_physics_callback("sim_step")
+            DataIO._on_save_data_event(self,log_path)
         return
     
     def _physics_step(self, step_size):
