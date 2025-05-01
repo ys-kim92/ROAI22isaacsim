@@ -28,7 +28,7 @@ class GoalValidationExtension(omni.ext.IExt):
             "file_path": os.path.abspath(__file__),
             "title": "Goal validation framework",
             "doc_link": "https://docs.isaacsim.omniverse.nvidia.com/latest/core_api_tutorials/tutorial_core_adding_multiple_robots.html",
-            "overview": "This Example shows how to run multiple tasks in the same scene.\n\nPress 'LOAD' to load the scene, \npress 'START STACKING' to start stacking.\n\nPress the 'Open in IDE' button to view the source code.",
+            "overview": "This Example shows how to run multiple tasks in the same scene.\n\nPress 'LOAD' to load the scene, \npress 'START validation' to start goal validation.\n\nPress the 'Open in IDE' button to view the source code.",
             "sample": GoalValidation(),
         }
 
@@ -69,33 +69,33 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
             ):
                 self.build_task_controls_ui()
 
-    def _on_start_stacking_button_event(self):
-        asyncio.ensure_future(self.sample._on_start_stacking_event_async())
-        self.task_ui_elements["Start Stacking"].enabled = False
+    def _on_start_button_event(self):
+        asyncio.ensure_future(self.sample._on_start_event_async())
+        self.task_ui_elements["Start"].enabled = False
         return
 
     def post_reset_button_event(self):
-        self.task_ui_elements["Start Stacking"].enabled = True
+        self.task_ui_elements["Start"].enabled = True
         return
 
     def post_load_button_event(self):
-        self.task_ui_elements["Start Stacking"].enabled = True
+        self.task_ui_elements["Start"].enabled = True
         return
 
     def post_clear_button_event(self):
-        self.task_ui_elements["Start Stacking"].enabled = False
+        self.task_ui_elements["Start"].enabled = False
         return
 
     def build_task_controls_ui(self):
         with ui.VStack(spacing=5):
 
             dict = {
-                "label": "Start Stacking",
+                "label": "Goal validation",
                 "type": "button",
-                "text": "Start Stacking",
-                "tooltip": "Start Stacking",
-                "on_clicked_fn": self._on_start_stacking_button_event,
+                "text": "Start",
+                "tooltip": "Start goal validation",
+                "on_clicked_fn": self._on_start_button_event,
             }
 
-            self.task_ui_elements["Start Stacking"] = btn_builder(**dict)
-            self.task_ui_elements["Start Stacking"].enabled = False
+            self.task_ui_elements["Start"] = btn_builder(**dict)
+            self.task_ui_elements["Start"].enabled = False
