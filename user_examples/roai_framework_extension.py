@@ -15,7 +15,7 @@ import omni.ui as ui
 from isaacsim.examples.browser import get_instance as get_browser_instance
 from isaacsim.examples.interactive.base_sample import RoaiBaseSampleUITemplate
 from isaacsim.examples.interactive.user_examples import GoalValidation
-from isaacsim.gui.components.ui_utils import btn_builder
+from isaacsim.gui.components.ui_utils import btn_builder, get_style, setup_ui_headers, state_btn_builder, str_builder
 
 
 class GoalValidationExtension(omni.ext.IExt):
@@ -58,6 +58,18 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
 
         with extra_stacks:
             with ui.CollapsableFrame(
+                title="Data Logging",
+                width=ui.Fraction(0.33),
+                height=0,
+                visible=True,
+                collapsed=False,
+                # style=get_style(),
+                horizontal_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_AS_NEEDED,
+                vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
+            ):
+                self.build_data_logging_ui()
+
+            with ui.CollapsableFrame(
                 title="Task Control",
                 width=ui.Fraction(0.33),
                 height=0,
@@ -68,11 +80,6 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
                 vertical_scrollbar_policy=ui.ScrollBarPolicy.SCROLLBAR_ALWAYS_ON,
             ):
                 self.build_task_controls_ui()
-
-    def _on_start_button_event(self):
-        asyncio.ensure_future(self.sample._on_start_event_async())
-        self.task_ui_elements["Start"].enabled = False
-        return
 
     def post_reset_button_event(self):
         self.task_ui_elements["Start"].enabled = True
@@ -85,6 +92,22 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
     def post_clear_button_event(self):
         self.task_ui_elements["Start"].enabled = False
         return
+    
+    #++++ 실제 버튼 UI
+    
+    def build_data_logging_ui(self):
+        with ui.VStack(spacing=5):
+            dict = {
+                "label": "Output Directory",
+                "type": "stringfield",
+                "default_val": os.path.join(os.getcwd(), "output_data.json"),
+                "tooltip": "Output Directory",
+                "on_clicked_fn": None,
+                "use_folder_picker": False,
+                "read_only": False,
+            }
+            self.task_ui_elements["Output Directory"] = str_builder(**dict)
+        return
 
     def build_task_controls_ui(self):
         with ui.VStack(spacing=5):
@@ -92,10 +115,18 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
             dict = {
                 "label": "Goal validation",
                 "type": "button",
-                "text": "Start",
+                "a_text": "START",
+                "b_text": "STOP",
                 "tooltip": "Start goal validation",
-                "on_clicked_fn": self._on_start_button_event,
+                "on_clicked_fn": self._on_task_button_event,
             }
 
-            self.task_ui_elements["Start"] = btn_builder(**dict)
+            self.task_ui_elements["Start"] = state_btn_builder(**dict)
             self.task_ui_elements["Start"].enabled = False
+
+    #+++++ 실제 버튼 기능
+
+    def _on_task_button_event(self, val):
+        asyncio.ensure_future(self.sample._on_task_event_async(val,self.task_ui_elements["Output Directory"].get_value_as_string()))
+        #self.task_ui_elements["Start"].enabled = False
+        return
