@@ -16,15 +16,21 @@ from isaacsim.robot.manipulators.examples.franka.tasks import Stacking
 class GoalValidation(RoaiBaseSample):
     def __init__(self) -> None:
         super().__init__()
+        self._robots = []
         self._tasks = []
         self._controllers = []
         self._articulation_controllers = []
-        self._robots = []
+
+        # 설정값
         self._num_of_tasks = 4
         return
+    
+    #+++++ Scene build
 
     def setup_scene(self):
         world = self.get_world()
+
+        # Task 추가 (*Follow target 반영)
         for i in range(self._num_of_tasks):
             task = Stacking(name="task" + str(i), offset=np.array([0, (i * 2) - 3, 0]))
             world.add_task(task)
@@ -35,6 +41,8 @@ class GoalValidation(RoaiBaseSample):
             self._tasks.append(self._world.get_task(name="task" + str(i)))
         for i in range(self._num_of_tasks):
             self._robots.append(self._world.scene.get_object(self._tasks[i].get_params()["robot_name"]["value"]))
+            
+            # Controller 추가 (*Follow target 반영)
             self._controllers.append(
                 StackingController(
                     name="stacking_controller",
@@ -48,18 +56,22 @@ class GoalValidation(RoaiBaseSample):
             self._articulation_controllers.append(self._robots[i].get_articulation_controller())
         return
 
-    def _on_start_factory_physics_step(self, step_size):
+    #+++++ Start 버튼 동작 후 실행
+
+    async def _on_start_event_async(self):
+        world = self.get_world()
+        world.add_physics_callback("sim_step", self._physics_step)
+        await world.play_async()
+        return
+    
+    def _physics_step(self, step_size):
         observations = self._world.get_observations()
         for i in range(self._num_of_tasks):
             actions = self._controllers[i].forward(observations=observations, end_effector_offset=np.array([0, 0, 0]))
             self._articulation_controllers[i].apply_action(actions)
         return
 
-    async def _on_start_stacking_event_async(self):
-        world = self.get_world()
-        world.add_physics_callback("sim_step", self._on_start_factory_physics_step)
-        await world.play_async()
-        return
+    #+++++ Reset 버튼 동작 후 실행
 
     async def setup_pre_reset(self):
         world = self.get_world()
@@ -70,8 +82,8 @@ class GoalValidation(RoaiBaseSample):
         return
 
     def world_cleanup(self):
+        self._robots = []
         self._tasks = []
         self._controllers = []
         self._articulation_controllers = []
-        self._robots = []
         return
