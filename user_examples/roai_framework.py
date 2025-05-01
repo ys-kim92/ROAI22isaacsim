@@ -11,6 +11,9 @@ import numpy as np
 from isaacsim.examples.interactive.base_sample import RoaiBaseSample
 from isaacsim.robot.manipulators.examples.franka.controllers.stacking_controller import StackingController
 from isaacsim.robot.manipulators.examples.franka.tasks import Stacking
+from isaacsim.robot.manipulators.examples.franka.controllers.rmpflow_controller import RMPFlowController
+from isaacsim.robot.manipulators.examples.franka.tasks import FollowTarget as FollowTargetTask
+
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.user_examples.data_io import DataIO
@@ -21,11 +24,13 @@ class GoalValidation(RoaiBaseSample):
         super().__init__()
         self._robots = []
         self._tasks = []
+        self._task_params = []
         self._controllers = []
         self._articulation_controllers = []
 
         # 설정값
-        self._num_of_tasks = 4
+        self._num_of_tasks = 4  # 로봇 대수
+        self._log_freq = 10     # FPS/n
         return
     
     #+++++ Scene build
@@ -33,30 +38,30 @@ class GoalValidation(RoaiBaseSample):
     def setup_scene(self):
         world = self.get_world()
 
-        # Task 추가 (*Follow target 반영)
+        # Scene & Task 추가
         for i in range(self._num_of_tasks):
-            task = Stacking(name="task" + str(i), offset=np.array([0, (i * 2) - 3, 0]))
+            task = FollowTargetTask(name="task" + str(i), offset=np.array([0, (i * 2) - 3, 0]))
             world.add_task(task)
         return
 
     async def setup_post_load(self):
+        # 로봇별 셋업
         for i in range(self._num_of_tasks):
-            self._tasks.append(self._world.get_task(name="task" + str(i)))
-        for i in range(self._num_of_tasks):
-            self._robots.append(self._world.scene.get_object(self._tasks[i].get_params()["robot_name"]["value"]))
+            task = self._world.get_task(name="task" + str(i))
+            self._tasks.append(task)
+            params = task.get_params()
+            self._task_params.append(params)
+
+            robot = self._world.scene.get_object(params["robot_name"]["value"])
+            self._robots.append(robot)
             
-            # Controller 추가 (*Follow target 반영)
-            self._controllers.append(
-                StackingController(
-                    name="stacking_controller",
-                    gripper=self._robots[i].gripper,
-                    robot_articulation=self._robots[i],
-                    picking_order_cube_names=self._tasks[i].get_cube_names(),
-                    robot_observation_name=self._robots[i].name,
-                )
+            controller = RMPFlowController(
+                name="target_follower_controller"+ str(i), 
+                robot_articulation=robot
             )
-        for i in range(self._num_of_tasks):
-            self._articulation_controllers.append(self._robots[i].get_articulation_controller())
+            self._controllers.append(controller)
+            articulation_controller = robot.get_articulation_controller()
+            self._articulation_controllers.append(articulation_controller)
         return
 
     #+++++ Start 버튼 동작 후 실행
@@ -66,7 +71,7 @@ class GoalValidation(RoaiBaseSample):
         if val:
             world.add_physics_callback("sim_step", self._physics_step)
             await world.play_async()
-            DataIO._on_logging_event(self)
+            DataIO._on_logging_event(self, self._log_freq)
         else:
             world.remove_physics_callback("sim_step")
             DataIO._on_save_data_event(self,log_path)
@@ -74,9 +79,20 @@ class GoalValidation(RoaiBaseSample):
     
     def _physics_step(self, step_size):
         observations = self._world.get_observations()
+
         for i in range(self._num_of_tasks):
-            actions = self._controllers[i].forward(observations=observations, end_effector_offset=np.array([0, 0, 0]))
+            target_name = self._task_params[i]["target_name"]["value"]
+            target_position = observations[target_name]["position"]
+            target_orientation = observations[target_name]["orientation"]
+
+            actions = self._controllers[i].forward(
+                target_end_effector_position=target_position,
+                target_end_effector_orientation=target_orientation,
+            )
             self._articulation_controllers[i].apply_action(actions)
+
+            #actions = self._controllers[i].forward(observations=observations, end_effector_offset=np.array([0, 0, 0]))
+            #self._articulation_controllers[i].apply_action(actions)
         return
 
     #+++++ Reset 버튼 동작 후 실행
@@ -92,6 +108,7 @@ class GoalValidation(RoaiBaseSample):
     def world_cleanup(self):
         self._robots = []
         self._tasks = []
+        self._task_params = []
         self._controllers = []
         self._articulation_controllers = []
         return
