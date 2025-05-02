@@ -66,4 +66,11 @@ class FollowTarget(tasks.FollowTarget):
             self._franka_robot_name = find_unique_string_name(
                 initial_name="my_franka", is_unique_fn=lambda x: not self.scene.object_exists(x)
             )
-        return Franka(prim_path=self._franka_prim_path, name=self._franka_robot_name)
+
+        robot = Franka(prim_path=self._franka_prim_path, name=self._franka_robot_name)
+
+        if hasattr(self, "_init_pose"):
+            pos, ori = self._init_pose
+            robot.set_world_pose(position=pos, orientation=ori)
+
+        return robot
