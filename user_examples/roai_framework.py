@@ -13,6 +13,8 @@ from isaacsim.examples.interactive.lib_robot.example.tasks import Stacking
 from isaacsim.examples.interactive.lib_robot.example.controllers.stacking_controller import StackingController
 from isaacsim.examples.interactive.lib_robot.example.tasks import FollowTarget as FollowTargetTask
 from isaacsim.examples.interactive.lib_robot.example.controllers.rmpflow_controller import RMPFlowController
+from omni.isaac.core.utils.rotations import euler_angles_to_quat
+
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
@@ -28,8 +30,15 @@ class GoalValidation(RoaiBaseSample):
         self._articulation_controllers = []
 
         # 설정값
-        self._num_of_tasks = 4  # 로봇 대수
         self._log_freq = 10     # FPS/n
+        self._robot_poses = [
+            # pos                 # rot (yaw) -> quaternion
+            (np.array([0, 0, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),      
+            (np.array([0, 2, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),     
+            (np.array([2.5, 0, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),    
+            (np.array([2.5, 2, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),  
+        ]
+        self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         return
     
     #+++++ Scene build
@@ -39,7 +48,9 @@ class GoalValidation(RoaiBaseSample):
 
         # Scene & Task 추가
         for i in range(self._num_of_tasks):
-            task = FollowTargetTask(name="task" + str(i), offset=np.array([0, (i * 2) - 3, 0]))
+            task = FollowTargetTask(name="task" + str(i))
+            task._init_pose = self._robot_poses[i]
+            
             world.add_task(task)
         return
 
@@ -53,7 +64,7 @@ class GoalValidation(RoaiBaseSample):
 
             robot = self._world.scene.get_object(params["robot_name"]["value"])
             self._robots.append(robot)
-            
+
             controller = RMPFlowController(
                 name="target_follower_controller"+ str(i), 
                 robot_articulation=robot
