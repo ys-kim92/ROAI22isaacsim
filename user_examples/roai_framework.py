@@ -13,8 +13,10 @@ from isaacsim.examples.interactive.lib_robot.example.tasks import Stacking
 from isaacsim.examples.interactive.lib_robot.example.controllers.stacking_controller import StackingController
 from isaacsim.examples.interactive.lib_robot.example.tasks import FollowTarget as FollowTargetTask
 from isaacsim.examples.interactive.lib_robot.example.controllers.rmpflow_controller import RMPFlowController
-from omni.isaac.core.utils.rotations import euler_angles_to_quat
-
+from isaacsim.core.utils.rotations import euler_angles_to_quat
+from isaacsim.core.utils.prims import is_prim_path_valid
+from isaacsim.core.utils.stage import get_stage_units
+from isaacsim.core.api.objects import VisualCuboid
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
@@ -33,10 +35,10 @@ class GoalValidation(RoaiBaseSample):
         self._log_freq = 10     # FPS/n
         self._robot_poses = [
             # pos                 # rot (yaw) -> quaternion
-            (np.array([0, 0, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),      
-            (np.array([0, 2, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),     
-            (np.array([2.5, 0, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),    
-            (np.array([2.5, 2, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),  
+            (np.array([1.5, 1, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),      
+            (np.array([1.5, -1, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),     
+            (np.array([-1.5, 1, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),    
+            (np.array([-1.5, -1, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),  
         ]
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         return
@@ -46,11 +48,30 @@ class GoalValidation(RoaiBaseSample):
     def setup_scene(self):
         world = self.get_world()
 
-        # Scene & Task 추가
+        # goal 추가
+        self._shared_target_path = "/World/SharedTarget"
+        self._shared_target_name = "shared_target"
+
+        if not is_prim_path_valid(self._shared_target_path):
+            target = VisualCuboid(
+                name=self._shared_target_name,
+                prim_path=self._shared_target_path,
+                position=np.array([0, 0, 0.7]),  # 초기 위치
+                orientation=euler_angles_to_quat(np.array([0, 0, 0])),
+                color=np.array([1, 0, 0]),
+                size=1.0,
+                scale=np.array([0.03, 0.03, 0.03]) / get_stage_units(),
+            )
+            world.scene.add(target)
+
+        # 로봇 추가
         for i in range(self._num_of_tasks):
-            task = FollowTargetTask(name="task" + str(i))
+            task = FollowTargetTask(
+                name="task" + str(i),
+                target_prim_path=self._shared_target_path,
+                target_name=self._shared_target_name
+            )
             task._init_pose = self._robot_poses[i]
-            
             world.add_task(task)
         return
 
