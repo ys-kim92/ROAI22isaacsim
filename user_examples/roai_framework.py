@@ -20,6 +20,7 @@ from isaacsim.core.api.objects import VisualCuboid
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
+from isaacsim.examples.interactive.lib_module.goal_related import GoalRelated
 
 
 class GoalValidation(RoaiBaseSample):
@@ -35,12 +36,24 @@ class GoalValidation(RoaiBaseSample):
         self._log_freq = 10     # FPS/n
         self._robot_poses = [
             # pos                 # rot (yaw) -> quaternion
-            (np.array([1.5, 1, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),      
-            (np.array([1.5, -1, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),     
-            (np.array([-1.5, 1, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),    
-            (np.array([-1.5, -1, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),  
+            (np.array([1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),      
+            (np.array([1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),     
+            (np.array([-1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),    
+            (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),  
         ]
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
+        self._target_waypoints = [
+            np.array([1.5, 1.0, 0.7]),
+            np.array([1.5, -1.0, 0.7]),
+            np.array([-1.5, -1.0, 0.7]),
+            np.array([-1.5, 1.0, 0.7])
+        ]
+        self._current_target_index = -1
+        self._target_reach_threshold = 0.05 
+        self._num_of_goals = len(self._target_waypoints)
+        self._fsm_timer = None  # 처음엔 None
+        self._fsm_finished = False
+
         return
     
     #+++++ Scene build
@@ -49,6 +62,9 @@ class GoalValidation(RoaiBaseSample):
         world = self.get_world()
 
         # goal 추가
+
+        GoalRelated.load_every_goals(world.scene, json_path="goals.json")
+
         self._shared_target_path = "/World/SharedTarget"
         self._shared_target_name = "shared_target"
 
@@ -58,7 +74,7 @@ class GoalValidation(RoaiBaseSample):
                 prim_path=self._shared_target_path,
                 position=np.array([0, 0, 0.7]),  # 초기 위치
                 orientation=euler_angles_to_quat(np.array([0, 0, 0])),
-                color=np.array([1, 0, 0]),
+                color=np.array([0, 1, 0]),
                 size=1.0,
                 scale=np.array([0.03, 0.03, 0.03]) / get_stage_units(),
             )
@@ -114,6 +130,19 @@ class GoalValidation(RoaiBaseSample):
         return
     
     def _physics_step(self, step_size):
+        if self._fsm_finished:
+            return
+    
+        current_time = self._world.current_time
+
+        if self._current_target_index == -1:
+            GoalRelated._teleport_next_target(self)
+            return
+
+        if (current_time - self._fsm_timer > 3.0):
+            GoalRelated._teleport_next_target(self)
+
+
         observations = self._world.get_observations()
 
         target_position = observations["shared_target"]["position"]
