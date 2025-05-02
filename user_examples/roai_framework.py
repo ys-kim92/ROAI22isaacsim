@@ -20,7 +20,7 @@ from isaacsim.core.api.objects import VisualCuboid
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
-from isaacsim.examples.interactive.lib_module.goal_related import GoalRelated
+from isaacsim.examples.interactive.lib_module.goal_related import *
 
 
 class GoalValidation(RoaiBaseSample):
@@ -42,18 +42,8 @@ class GoalValidation(RoaiBaseSample):
             (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),  
         ]
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
-        self._target_waypoints = [
-            np.array([1.5, 1.0, 0.7]),
-            np.array([1.5, -1.0, 0.7]),
-            np.array([-1.5, -1.0, 0.7]),
-            np.array([-1.5, 1.0, 0.7])
-        ]
-        self._current_target_index = -1
-        self._target_reach_threshold = 0.05 
-        self._num_of_goals = len(self._target_waypoints)
-        self._fsm_timer = None  # 처음엔 None
-        self._fsm_finished = False
-
+        self._target_reach_threshold = 0.05
+        self._teleport_timeout = 3
         return
     
     #+++++ Scene build
@@ -62,8 +52,7 @@ class GoalValidation(RoaiBaseSample):
         world = self.get_world()
 
         # goal 추가
-
-        GoalRelated.load_every_goals(world.scene, json_path="goals.json")
+        GoalRelated._visualize_every_goals(world.scene, filename="goals.json")
 
         self._shared_target_path = "/World/SharedTarget"
         self._shared_target_name = "shared_target"
@@ -90,6 +79,13 @@ class GoalValidation(RoaiBaseSample):
             task._init_pose = self._robot_poses[i]
 
             world.add_task(task)
+
+        # Target goal 추가
+        self._goal_sequence = GoalLoader._load_goals_from_file("goals.json")
+        self._num_of_goals = len(self._goal_sequence)
+        self._current_target_index = -1
+        self._fsm_timer = None
+        self._fsm_finished = False
         return
 
     async def setup_post_load(self):
@@ -139,7 +135,7 @@ class GoalValidation(RoaiBaseSample):
             GoalRelated._teleport_next_target(self)
             return
 
-        if (current_time - self._fsm_timer > 3.0):
+        if (current_time - self._fsm_timer > self._teleport_timeout):
             GoalRelated._teleport_next_target(self)
 
 
@@ -155,9 +151,6 @@ class GoalValidation(RoaiBaseSample):
                 target_end_effector_orientation=target_orientation,
             )
             self._articulation_controllers[i].apply_action(actions)
-            
-            #actions = self._controllers[i].forward(observations=observations, end_effector_offset=np.array([0, 0, 0]))
-            #self._articulation_controllers[i].apply_action(actions)
         return
 
     #+++++ Reset 버튼 동작 후 실행
