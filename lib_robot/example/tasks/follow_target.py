@@ -61,6 +61,8 @@ class FollowTarget(tasks.FollowTarget):
 
         self._franka_prim_path = franka_prim_path
         self._franka_robot_name = franka_robot_name
+
+        self._physics_sim_view = None
         return
     
     def set_up_scene(self, scene: Scene) -> None:
