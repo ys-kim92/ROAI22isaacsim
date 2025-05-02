@@ -9,14 +9,13 @@
 
 import numpy as np
 from isaacsim.examples.interactive.base_sample import RoaiBaseSample
-from isaacsim.robot.manipulators.examples.franka.controllers.stacking_controller import StackingController
-from isaacsim.robot.manipulators.examples.franka.tasks import Stacking
-from isaacsim.robot.manipulators.examples.franka.controllers.rmpflow_controller import RMPFlowController
-from isaacsim.robot.manipulators.examples.franka.tasks import FollowTarget as FollowTargetTask
-
+from isaacsim.examples.interactive.lib_robot.example.tasks import Stacking
+from isaacsim.examples.interactive.lib_robot.example.controllers.stacking_controller import StackingController
+from isaacsim.examples.interactive.lib_robot.example.tasks import FollowTarget as FollowTargetTask
+from isaacsim.examples.interactive.lib_robot.example.controllers.rmpflow_controller import RMPFlowController
 
 #+++++ Custom 모듈
-from isaacsim.examples.interactive.user_examples.data_io import DataIO
+from isaacsim.examples.interactive.lib_module.data_io import DataIO
 
 
 class GoalValidation(RoaiBaseSample):
