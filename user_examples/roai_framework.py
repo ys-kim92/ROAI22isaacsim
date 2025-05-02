@@ -72,6 +72,7 @@ class GoalValidation(RoaiBaseSample):
                 target_name=self._shared_target_name
             )
             task._init_pose = self._robot_poses[i]
+
             world.add_task(task)
         return
 
@@ -82,6 +83,10 @@ class GoalValidation(RoaiBaseSample):
             self._tasks.append(task)
             params = task.get_params()
             self._task_params.append(params)
+
+            task._physics_isim_view = self._world.physics_sim_view
+            task._robot.initialize(task._physics_sim_view)
+
 
             robot = self._world.scene.get_object(params["robot_name"]["value"])
             self._robots.append(robot)
@@ -111,17 +116,17 @@ class GoalValidation(RoaiBaseSample):
     def _physics_step(self, step_size):
         observations = self._world.get_observations()
 
-        for i in range(self._num_of_tasks):
-            target_name = self._task_params[i]["target_name"]["value"]
-            target_position = observations[target_name]["position"]
-            target_orientation = observations[target_name]["orientation"]
+        target_position = observations["shared_target"]["position"]
+        target_orientation = observations["shared_target"]["orientation"]
 
+
+        for i in range(self._num_of_tasks):
             actions = self._controllers[i].forward(
                 target_end_effector_position=target_position,
                 target_end_effector_orientation=target_orientation,
             )
             self._articulation_controllers[i].apply_action(actions)
-
+            
             #actions = self._controllers[i].forward(observations=observations, end_effector_offset=np.array([0, 0, 0]))
             #self._articulation_controllers[i].apply_action(actions)
         return
