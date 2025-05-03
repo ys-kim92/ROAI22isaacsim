@@ -11,3 +11,6 @@ from isaacsim.examples.interactive.path_planning.path_planning import PathPlanni
 from isaacsim.examples.interactive.path_planning.path_planning_controller import PathPlannerController
 from isaacsim.examples.interactive.path_planning.path_planning_extension import PathPlanningExtension
 from isaacsim.examples.interactive.path_planning.path_planning_task import PathPlanningTask
+
+from isaacsim.examples.interactive.path_planning.roai_path_planning_task import RoaiPathPlanningTask
+from isaacsim.examples.interactive.path_planning.roai_path_planning_controller import RoaiPathPlanningController
