@@ -32,7 +32,7 @@ class RoaiPathPlanningController(BaseController):
         path_planner_visualizer: PathPlannerVisualizer,
         cspace_trajectory_generator: LulaCSpaceTrajectoryGenerator,
         physics_dt=1 / 60.0,
-        rrt_interpolation_max_dist=1,
+        rrt_interpolation_max_dist=0.01,
     ):
         BaseController.__init__(self, name)
 
