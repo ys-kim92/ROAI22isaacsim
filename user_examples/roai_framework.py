@@ -38,14 +38,15 @@ class GoalValidation(RoaiBaseSample):
         self._log_freq = 10     # FPS/n
         self._robot_poses = [
             # pos                 # rot (yaw) -> quaternion
-            (np.array([1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),      
-            (np.array([1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),     
-            (np.array([-1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),    
-            (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),  
+            (np.array([1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),      
+            (np.array([1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),     
+            (np.array([-1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),    
+            (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),  
         ]
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         self._target_reach_threshold = 0.05
         self._teleport_timeout = 3
+        self._planning_mode = 0         # 0: RMPflow, 1: RRT
         return
     
     #+++++ Scene build
@@ -73,19 +74,19 @@ class GoalValidation(RoaiBaseSample):
 
         # 로봇 추가
         for i in range(self._num_of_tasks):
-            """
-            task = FollowTargetTask(
-                name="task" + str(i),
-                target_prim_path=self._shared_target_path,
-                target_name=self._shared_target_name
-            )
-            """
-            task = FrankaPathPlanningTask(
-                name="task" + str(i),
-                target_prim_path=self._shared_target_path,
-                target_name=self._shared_target_name
-            )
-            task._init_pose = self._robot_poses[i]
+            if self._planning_mode == 0:
+                task = FollowTargetTask(
+                    name="task" + str(i),
+                    target_prim_path=self._shared_target_path,
+                    target_name=self._shared_target_name
+                )
+            elif self._planning_mode == 1:
+                task = FrankaPathPlanningTask(
+                    name="task" + str(i),
+                    target_prim_path=self._shared_target_path,
+                    target_name=self._shared_target_name
+                )
+                task._init_pose = self._robot_poses[i]
 
             world.add_task(task)
 
@@ -112,13 +113,15 @@ class GoalValidation(RoaiBaseSample):
             robot = self._world.scene.get_object(params["robot_name"]["value"])
             self._robots.append(robot)
 
-            controller = FrankaRrtController(name="target_follower_controller"+ str(i), robot_articulation=robot)
-            """
-            controller = RMPFlowController(
-                name="target_follower_controller"+ str(i), 
-                robot_articulation=robot
-            )
-            """
+            if self._planning_mode == 0:
+                controller = RMPFlowController(
+                    name="target_follower_controller"+ str(i), 
+                    robot_articulation=robot
+                )
+            elif self._planning_mode == 1:
+                controller = FrankaRrtController(name="target_follower_controller"+ str(i), robot_articulation=robot)
+
+
             self._controllers.append(controller)
             articulation_controller = robot.get_articulation_controller()
             self._articulation_controllers.append(articulation_controller)
@@ -146,10 +149,13 @@ class GoalValidation(RoaiBaseSample):
         # shared target 위치 변경
         if self._current_target_index == -1:
             GoalRelated._teleport_next_target(self)
-            return
+            #return
 
         if (current_time - self._fsm_timer > self._teleport_timeout):
             GoalRelated._teleport_next_target(self)
+
+            for controller in self._controllers:
+                controller.reset()
 
         # robot 제어
         observations = self._world.get_observations()

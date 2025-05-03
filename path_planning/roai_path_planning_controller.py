@@ -32,7 +32,7 @@ class RoaiPathPlanningController(BaseController):
         path_planner_visualizer: PathPlannerVisualizer,
         cspace_trajectory_generator: LulaCSpaceTrajectoryGenerator,
         physics_dt=1 / 60.0,
-        rrt_interpolation_max_dist=0.01,
+        rrt_interpolation_max_dist=1,
     ):
         BaseController.__init__(self, name)
 
@@ -83,7 +83,7 @@ class RoaiPathPlanningController(BaseController):
             return
 
         print(len(self._rrt_plan))
-
+        
         self._action_sequence = self._convert_rrt_plan_to_trajectory(self._rrt_plan)
         self._last_solution = self._action_sequence[-1].joint_positions
 
@@ -160,4 +160,4 @@ class FrankaRrtController(RoaiPathPlanningController):
 
         visualizer = PathPlannerVisualizer(robot_articulation, rrt)
 
-        PathPlannerController.__init__(self, name, visualizer, cspace_trajectory_generator)
+        RoaiPathPlanningController.__init__(self, name, visualizer, cspace_trajectory_generator)
