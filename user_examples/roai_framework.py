@@ -10,6 +10,8 @@
 import numpy as np
 from isaacsim.examples.interactive.base_sample import RoaiBaseSample
 from isaacsim.examples.interactive.lib_robot.example.tasks import Stacking
+from isaacsim.examples.interactive.path_planning.roai_path_planning_controller import FrankaRrtController
+from isaacsim.examples.interactive.path_planning.roai_path_planning_task import FrankaPathPlanningTask
 from isaacsim.examples.interactive.lib_robot.example.controllers.stacking_controller import StackingController
 from isaacsim.examples.interactive.lib_robot.example.tasks import FollowTarget as FollowTargetTask
 from isaacsim.examples.interactive.lib_robot.example.controllers.rmpflow_controller import RMPFlowController
@@ -25,7 +27,7 @@ from isaacsim.examples.interactive.lib_module.goal_related import *
 
 class GoalValidation(RoaiBaseSample):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__()#
         self._robots = []
         self._tasks = []
         self._task_params = []
@@ -71,7 +73,14 @@ class GoalValidation(RoaiBaseSample):
 
         # 로봇 추가
         for i in range(self._num_of_tasks):
+            """
             task = FollowTargetTask(
+                name="task" + str(i),
+                target_prim_path=self._shared_target_path,
+                target_name=self._shared_target_name
+            )
+            """
+            task = FrankaPathPlanningTask(
                 name="task" + str(i),
                 target_prim_path=self._shared_target_path,
                 target_name=self._shared_target_name
@@ -103,10 +112,13 @@ class GoalValidation(RoaiBaseSample):
             robot = self._world.scene.get_object(params["robot_name"]["value"])
             self._robots.append(robot)
 
+            controller = FrankaRrtController(name="target_follower_controller"+ str(i), robot_articulation=robot)
+            """
             controller = RMPFlowController(
                 name="target_follower_controller"+ str(i), 
                 robot_articulation=robot
             )
+            """
             self._controllers.append(controller)
             articulation_controller = robot.get_articulation_controller()
             self._articulation_controllers.append(articulation_controller)
@@ -131,6 +143,7 @@ class GoalValidation(RoaiBaseSample):
     
         current_time = self._world.current_time
 
+        # shared target 위치 변경
         if self._current_target_index == -1:
             GoalRelated._teleport_next_target(self)
             return
@@ -138,7 +151,7 @@ class GoalValidation(RoaiBaseSample):
         if (current_time - self._fsm_timer > self._teleport_timeout):
             GoalRelated._teleport_next_target(self)
 
-
+        # robot 제어
         observations = self._world.get_observations()
 
         target_position = observations["shared_target"]["position"]
@@ -150,6 +163,8 @@ class GoalValidation(RoaiBaseSample):
                 target_end_effector_position=target_position,
                 target_end_effector_orientation=target_orientation,
             )
+            kps, kds = self._tasks[i].get_custom_gains()
+            self._articulation_controllers[i].set_gains(kps, kds)
             self._articulation_controllers[i].apply_action(actions)
         return
 
