@@ -46,7 +46,7 @@ class GoalValidation(RoaiBaseSample):
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         self._target_reach_threshold = 0.05
         self._teleport_timeout = 3
-        self._planning_mode = 1         # 0: RMPflow, 1: RRT
+        self._planning_mode = 0         # 0: RMPflow, 1: RRT
         return
     
     #+++++ Scene build
@@ -163,11 +163,24 @@ class GoalValidation(RoaiBaseSample):
         target_position = observations["shared_target"]["position"]
         target_orientation = observations["shared_target"]["orientation"]
 
-
         for i in range(self._num_of_tasks):
+            if self._planning_mode == 0:
+                local_pos = target_position
+                local_ori = target_orientation
+
+            elif self._planning_mode == 1:
+                base_position, base_orientation = self._robots[i].get_world_pose()
+
+                local_pos, local_ori = GoalRelated.transform_pose_to_local_frame(
+                    target_position,
+                    target_orientation,
+                    base_position,
+                    base_orientation
+                )
+
             actions = self._controllers[i].forward(
-                target_end_effector_position=target_position,
-                target_end_effector_orientation=target_orientation,
+                target_end_effector_position=local_pos,
+                target_end_effector_orientation=local_ori,
             )
             if self._planning_mode == 1:
                 kps, kds = self._tasks[i].get_custom_gains()
