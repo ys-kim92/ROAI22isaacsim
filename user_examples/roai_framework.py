@@ -106,12 +106,11 @@ class GoalValidation(RoaiBaseSample):
             params = task.get_params()
             self._task_params.append(params)
 
-            task._physics_isim_view = self._world.physics_sim_view
-            task._robot.initialize(task._physics_sim_view)
-
-
             robot = self._world.scene.get_object(params["robot_name"]["value"])
             self._robots.append(robot)
+
+            task._physics_isim_view = self._world.physics_sim_view
+            task._robot.initialize(task._physics_sim_view)
 
             if self._planning_mode == 0:
                 controller = RMPFlowController(
