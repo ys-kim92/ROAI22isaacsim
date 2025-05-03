@@ -27,7 +27,7 @@ from isaacsim.examples.interactive.lib_module.goal_related import *
 
 class GoalValidation(RoaiBaseSample):
     def __init__(self) -> None:
-        super().__init__()#
+        super().__init__()
         self._robots = []
         self._tasks = []
         self._task_params = []
@@ -46,7 +46,7 @@ class GoalValidation(RoaiBaseSample):
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         self._target_reach_threshold = 0.05
         self._teleport_timeout = 3
-        self._planning_mode = 0         # 0: RMPflow, 1: RRT
+        self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
     
     #+++++ Scene build
@@ -86,8 +86,8 @@ class GoalValidation(RoaiBaseSample):
                     target_prim_path=self._shared_target_path,
                     target_name=self._shared_target_name
                 )
-                task._init_pose = self._robot_poses[i]
 
+            task._init_pose = self._robot_poses[i]
             world.add_task(task)
 
         # Target goal 추가
@@ -154,8 +154,9 @@ class GoalValidation(RoaiBaseSample):
         if (current_time - self._fsm_timer > self._teleport_timeout):
             GoalRelated._teleport_next_target(self)
 
-            for controller in self._controllers:
-                controller.reset()
+            if self._planning_mode == 1:
+                for controller in self._controllers:
+                    controller.reset()
 
         # robot 제어
         observations = self._world.get_observations()
@@ -169,8 +170,9 @@ class GoalValidation(RoaiBaseSample):
                 target_end_effector_position=target_position,
                 target_end_effector_orientation=target_orientation,
             )
-            kps, kds = self._tasks[i].get_custom_gains()
-            self._articulation_controllers[i].set_gains(kps, kds)
+            if self._planning_mode == 1:
+                kps, kds = self._tasks[i].get_custom_gains()
+                self._articulation_controllers[i].set_gains(kps, kds)
             self._articulation_controllers[i].apply_action(actions)
         return
 
