@@ -7,6 +7,8 @@ from isaacsim.core.api.objects import VisualCuboid
 from isaacsim.core.utils.prims import is_prim_path_valid
 from isaacsim.core.utils.stage import get_stage_units
 from isaacsim.core.utils.prims import create_prim
+from scipy.spatial.transform import Rotation as R
+
 
 
 
@@ -56,6 +58,33 @@ class GoalRelated(RoaiBaseSample):
             )
             scene.add(cube)
 
+    def transform_pose_to_local_frame(global_position, global_orientation, base_position, base_orientation):
+        """
+        월드 기준 pose (position + orientation)를 로봇 base frame 기준으로 변환합니다.
+
+        Args:
+            global_position (np.ndarray): 월드 좌표계 기준의 target 위치 (3,)
+            global_orientation (np.ndarray): 월드 좌표계 기준의 쿼터니언 (x, y, z, w)
+            base_position (np.ndarray): 로봇 base의 위치
+            base_orientation (np.ndarray): 로봇 base의 orientation (쿼터니언)
+
+        Returns:
+            local_position (np.ndarray): 로봇 base 기준 target 위치
+            local_orientation (np.ndarray): 로봇 base 기준 target 쿼터니언
+        """
+        # 위치 변환
+        delta = global_position - base_position
+        base_rot = R.from_quat(base_orientation)
+        local_position = base_rot.inv().apply(delta)
+
+        # 회전 변환 (상대 쿼터니언 계산: base^-1 * global)
+        global_rot = R.from_quat(global_orientation)
+        local_rot = base_rot.inv() * global_rot
+        local_orientation = local_rot.as_quat()
+
+        return local_position, local_orientation
+    
+    
 class GoalLoader:
     @staticmethod
     def _load_goals_from_file(filename="goals.json"):
