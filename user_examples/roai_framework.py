@@ -47,7 +47,7 @@ class GoalValidation(RoaiBaseSample):
         ]   # 추후 urdf에 robot initial position 입력받으면 필요없는 코드
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         self._target_reach_threshold = 0.05
-        self._teleport_timeout = 3
+        self._goal_move_timeout = 1
         self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
     
@@ -75,6 +75,7 @@ class GoalValidation(RoaiBaseSample):
             )
             world.scene.add(target)
 
+        self._current_robot_index = 0
         self._current_target_index = -1
         self._reached_flag = False
         self._fsm_timer = None
@@ -148,19 +149,11 @@ class GoalValidation(RoaiBaseSample):
     
         current_time = self._world.current_time
 
-        # shared target 위치 변경
+        # shared target 초기 위치
         if self._current_target_index == -1:
             GoalRelated._move_to_next_target(self)
-            #return
-
-        if (current_time - self._fsm_timer > self._teleport_timeout):
-            GoalRelated._move_to_next_target(self)
-
-            if self._planning_mode == 1:
-                for controller in self._controllers:
-                    controller.reset()
-
-                self._reached_flag = False
+            self._fsm_timer = current_time
+            return
 
         # robot 제어
         observations = self._world.get_observations()
@@ -168,38 +161,62 @@ class GoalValidation(RoaiBaseSample):
         target_position = observations["shared_target"]["position"]
         target_orientation = observations["shared_target"]["orientation"]    # quaternian wxyz 순서
 
-        for i in range(self._num_of_tasks):
-            if self._planning_mode == 0:
-                local_pos = target_position
-                local_ori = target_orientation
+        robot = self._robots[self._current_robot_index]
+        controller = self._controllers[self._current_robot_index]
+        articulation_controller = self._articulation_controllers[self._current_robot_index]
+           
+        if self._planning_mode == 0:
+            local_pos = target_position
+            local_ori = target_orientation
 
-                actions = self._controllers[i].forward(
-                    target_end_effector_position=local_pos,
-                    target_end_effector_orientation=local_ori,
-                )
+            actions = controller.forward(
+                target_end_effector_position=local_pos,
+                target_end_effector_orientation=local_ori,
+            )
 
-            elif self._planning_mode == 1:
-                base_position, base_orientation = self._robots[i].get_world_pose()  # quaternian wxyz 순서
+        elif self._planning_mode == 1:
+            base_position, base_orientation = robot.get_world_pose()  # quaternian wxyz 순서
 
-                local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
-                    target_position,
-                    target_orientation,
-                    base_position,
-                    base_orientation
-                )
+            local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
+                target_position,
+                target_orientation,
+                base_position,
+                base_orientation
+            )
 
-                actions = self._controllers[i].forward(
-                    target_index = self._current_target_index,
-                    target_end_effector_position=local_pos,
-                    target_end_effector_orientation=local_ori,
-                )
-                kps, kds = self._tasks[i].get_custom_gains()
-                self._articulation_controllers[i].set_gains(kps, kds)
+            actions = controller.forward(
+                target_index = self._current_target_index,
+                target_end_effector_position=local_pos,
+                target_end_effector_orientation=local_ori,
+            )
+            kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
+            articulation_controller.set_gains(kps, kds)
 
-            self._articulation_controllers[i].apply_action(actions)
+        articulation_controller.apply_action(actions)
+
+        # shared target 위치 변경
+        if controller._success_flag:
+            if (current_time - self._fsm_timer > self._goal_move_timeout):
+                GoalRelated._move_to_next_target(self)
+
+                if self._planning_mode == 1:
+                    self._controllers[self._current_robot_index].reset()
+                    controller._success_flag = False
+                    self._reached_flag = False
+                    self._fsm_timer = current_time
+
+        else:
+            GoalRelated._move_to_next_target(self)
+            
+            if self._planning_mode == 1:
+                self._controllers[self._current_robot_index].reset()
+                controller._success_flag = False
+                self._reached_flag = False
+                self._fsm_timer = current_time
+
         return
 
-    #+++++ Reset 버튼 동작 후 실행
+    #+++++ Reset 버튼 동작 후 실행, 추후 업데이트 필요
 
     async def setup_pre_reset(self):
         world = self.get_world()
