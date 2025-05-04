@@ -171,6 +171,7 @@ class RoaiPathPlanningTask(BaseTask):
         """
         end_effector_position, _ = self._robot.end_effector.get_world_pose()
         target_position, _ = self._target.get_world_pose()
+
         if np.mean(np.abs(np.array(end_effector_position) - np.array(target_position))) < (0.035 / get_stage_units()):
             return True
         else:
@@ -186,9 +187,11 @@ class RoaiPathPlanningTask(BaseTask):
         if self._target_visual_material is not None:
             if hasattr(self._target_visual_material, "set_color"):
                 if self.target_reached():
-                    self._target_visual_material.set_color(color=np.array([0, 1.0, 0]))
+                    self.sample._reached_flag = True
+                    self._target_visual_material.set_color(color=np.array([0, 1.0, 0]))   # green
                 else:
-                    self._target_visual_material.set_color(color=np.array([1.0, 0, 0]))
+                    if not self.sample._reached_flag:
+                        self._target_visual_material.set_color(color=np.array([1.0, 0, 0]))   # red
 
         return
 
@@ -311,11 +314,12 @@ class FrankaPathPlanningTask(RoaiPathPlanningTask):
         self._target = self.scene.get_object(self._target_name)
         self._task_objects[self._target_name] = self._target
         self._target_visual_material = self._target.get_applied_visual_material()
+        print(self._target_visual_material)
 
         self._robot = self.set_robot()
         self._task_objects[self._robot.name] = self._robot
         self._move_task_objects_to_their_frame()
-        
+
     def set_params(self, *args, **kwargs):
         return
 
