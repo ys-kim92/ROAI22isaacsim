@@ -42,11 +42,11 @@ class GoalValidation(RoaiBaseSample):
             (np.array([1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),     
             (np.array([-1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),    
             (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),  
-        ]
+        ]   # 추후 urdf에 robot initial position 입력받으면 필요없는 코드
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         self._target_reach_threshold = 0.05
         self._teleport_timeout = 3
-        self._planning_mode = 0         # 0: RMPflow, 1: RRT
+        self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
     
     #+++++ Scene build
@@ -55,7 +55,8 @@ class GoalValidation(RoaiBaseSample):
         world = self.get_world()
 
         # goal 추가
-        GoalRelated._visualize_every_goals(world.scene, filename="goals.json")
+        self._goal_sequence = GoalRelated._visualize_every_goals(world.scene, filename="goals.json")
+        self._num_of_goals = len(self._goal_sequence)
 
         self._shared_target_path = "/World/SharedTarget"
         self._shared_target_name = "shared_target"
@@ -71,6 +72,10 @@ class GoalValidation(RoaiBaseSample):
                 scale=np.array([0.03, 0.03, 0.03]) / get_stage_units(),
             )
             world.scene.add(target)
+
+        self._current_target_index = -1
+        self._fsm_timer = None
+        self._fsm_finished = False
 
         # 로봇 추가
         for i in range(self._num_of_tasks):
@@ -89,13 +94,6 @@ class GoalValidation(RoaiBaseSample):
 
             task._init_pose = self._robot_poses[i]
             world.add_task(task)
-
-        # Target goal 추가
-        self._goal_sequence = GoalLoader._load_goals_from_file("goals.json")
-        self._num_of_goals = len(self._goal_sequence)
-        self._current_target_index = -1
-        self._fsm_timer = None
-        self._fsm_finished = False
         return
 
     async def setup_post_load(self):
@@ -147,11 +145,11 @@ class GoalValidation(RoaiBaseSample):
 
         # shared target 위치 변경
         if self._current_target_index == -1:
-            GoalRelated._teleport_next_target(self)
+            GoalRelated._move_to_next_target(self)
             #return
 
         if (current_time - self._fsm_timer > self._teleport_timeout):
-            GoalRelated._teleport_next_target(self)
+            GoalRelated._move_to_next_target(self)
 
             if self._planning_mode == 1:
                 for controller in self._controllers:
@@ -161,7 +159,7 @@ class GoalValidation(RoaiBaseSample):
         observations = self._world.get_observations()
 
         target_position = observations["shared_target"]["position"]
-        target_orientation = observations["shared_target"]["orientation"]
+        target_orientation = observations["shared_target"]["orientation"]    # quaternian wxyz 순서
 
         for i in range(self._num_of_tasks):
             if self._planning_mode == 0:
@@ -169,9 +167,12 @@ class GoalValidation(RoaiBaseSample):
                 local_ori = target_orientation
 
             elif self._planning_mode == 1:
-                base_position, base_orientation = self._robots[i].get_world_pose()
+                base_position, base_orientation = self._robots[i].get_world_pose()  # quaternian wxyz 순서
 
-                local_pos, local_ori = GoalRelated.transform_pose_to_local_frame(
+                #print("target : ", target_position, target_orientation)
+                #print("Base : ", base_position, base_orientation)
+
+                local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
                     target_position,
                     target_orientation,
                     base_position,
@@ -179,6 +180,7 @@ class GoalValidation(RoaiBaseSample):
                 )
 
             actions = self._controllers[i].forward(
+                target_index = self._current_target_index,
                 target_end_effector_position=local_pos,
                 target_end_effector_orientation=local_ori,
             )

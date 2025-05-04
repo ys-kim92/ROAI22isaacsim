@@ -8,13 +8,15 @@ from isaacsim.core.utils.prims import is_prim_path_valid
 from isaacsim.core.utils.stage import get_stage_units
 from isaacsim.core.utils.prims import create_prim
 from scipy.spatial.transform import Rotation as R
+import carb
 
 
 
 
 class GoalRelated(RoaiBaseSample):
-    def _teleport_next_target(self):
+    def _move_to_next_target(self):
         self._current_target_index += 1
+
         if self._current_target_index >= self._num_of_goals:
             self._fsm_finished = True
             return
@@ -22,15 +24,17 @@ class GoalRelated(RoaiBaseSample):
         goal = self._goal_sequence[self._current_target_index]
         pos = np.array(goal["position"])
         rpy = np.array(goal["orientation"])
-        quat = euler_angles_to_quat(rpy)
+        quat = euler_angles_to_quat(rpy)        # wxyz로 만듦
 
         target = self._world.scene.get_object("shared_target")
         target.set_world_pose(position=pos, orientation=quat)
 
         self._fsm_timer = self._world.current_time
-        print(f"[FSM] Teleported to goal {self._current_target_index} → pos: {pos}, rpy: {rpy}")
+        #carb.log_info(f"[FSM] Move to goal #{self._current_target_index} → pos: {pos}, rpy: {rpy}")
+        print("--------------------------------------------------------")
+        print(f"[FSM] Move to goal #{self._current_target_index} → pos: {pos}, rpy: {rpy}")
 
-
+    @staticmethod
     def _visualize_every_goals(scene, filename="goals.json"):
         base_dir = os.path.dirname(__file__)
         abs_path = os.path.join(base_dir, filename)
@@ -58,40 +62,34 @@ class GoalRelated(RoaiBaseSample):
             )
             scene.add(cube)
 
-    def transform_pose_to_local_frame(global_position, global_orientation, base_position, base_orientation):
-        """
-        월드 기준 pose (position + orientation)를 로봇 base frame 기준으로 변환합니다.
+        return goal_points
 
-        Args:
-            global_position (np.ndarray): 월드 좌표계 기준의 target 위치 (3,)
-            global_orientation (np.ndarray): 월드 좌표계 기준의 쿼터니언 (x, y, z, w)
-            base_position (np.ndarray): 로봇 base의 위치
-            base_orientation (np.ndarray): 로봇 base의 orientation (쿼터니언)
 
-        Returns:
-            local_position (np.ndarray): 로봇 base 기준 target 위치
-            local_orientation (np.ndarray): 로봇 base 기준 target 쿼터니언
-        """
+    @staticmethod
+    def _transform_goal_to_local_frame(target_position, target_orientation, base_position, base_orientation):
+        base_ori_xyzw = wxyz_to_xyzw(base_orientation)
+        target_ori_xyzw = wxyz_to_xyzw(target_orientation)
+
         # 위치 변환
-        delta = global_position - base_position
-        base_rot = R.from_quat(base_orientation)
+        delta = target_position - base_position
+        base_rot = R.from_quat(base_ori_xyzw)
         local_position = base_rot.inv().apply(delta)
 
-        # 회전 변환 (상대 쿼터니언 계산: base^-1 * global)
-        global_rot = R.from_quat(global_orientation)
-        local_rot = base_rot.inv() * global_rot
+        # 회전 변환
+        target_rot = R.from_quat(target_ori_xyzw)
+        local_rot = base_rot.inv() * target_rot
         local_orientation = local_rot.as_quat()
+        
+        local_orientation = xyzw_to_wxyz(local_orientation)
 
         return local_position, local_orientation
+       
     
-    
-class GoalLoader:
-    @staticmethod
-    def _load_goals_from_file(filename="goals.json"):
-        base_dir = os.path.dirname(__file__)
-        abs_path = os.path.join(base_dir, filename)
 
-        with open(abs_path, "r") as f:
-            goal_points = json.load(f)
+@staticmethod
+def wxyz_to_xyzw(quat):
+    return np.array([quat[1], quat[2], quat[3], quat[0]])
 
-        return goal_points
+@staticmethod
+def xyzw_to_wxyz(quat):
+    return np.array([quat[3], quat[0], quat[1], quat[2]])
