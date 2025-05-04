@@ -19,6 +19,8 @@ from isaacsim.core.utils.rotations import euler_angles_to_quat
 from isaacsim.core.utils.prims import is_prim_path_valid
 from isaacsim.core.utils.stage import get_stage_units
 from isaacsim.core.api.objects import VisualCuboid
+from isaacsim.core.api.objects import VisualCone
+
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
@@ -46,7 +48,7 @@ class GoalValidation(RoaiBaseSample):
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         self._target_reach_threshold = 0.05
         self._teleport_timeout = 3
-        self._planning_mode = 1         # 0: RMPflow, 1: RRT
+        self._planning_mode = 0         # 0: RMPflow, 1: RRT
         return
     
     #+++++ Scene build
@@ -62,14 +64,14 @@ class GoalValidation(RoaiBaseSample):
         self._shared_target_name = "shared_target"
 
         if not is_prim_path_valid(self._shared_target_path):
-            target = VisualCuboid(
+            target = VisualCone(
                 name=self._shared_target_name,
                 prim_path=self._shared_target_path,
                 position=np.array([0, 0, 0.7]),  # 초기 위치
-                orientation=euler_angles_to_quat(np.array([0, 0, 0])),
                 color=np.array([0, 1, 0]),
-                size=1.0,
-                scale=np.array([0.03, 0.03, 0.03]) / get_stage_units(),
+                orientation=euler_angles_to_quat(np.array([0, 0, 0])),
+                height=0.05,                  
+                radius=0.02
             )
             world.scene.add(target)
 
@@ -166,11 +168,13 @@ class GoalValidation(RoaiBaseSample):
                 local_pos = target_position
                 local_ori = target_orientation
 
+                actions = self._controllers[i].forward(
+                    target_end_effector_position=local_pos,
+                    target_end_effector_orientation=local_ori,
+                )
+
             elif self._planning_mode == 1:
                 base_position, base_orientation = self._robots[i].get_world_pose()  # quaternian wxyz 순서
-
-                #print("target : ", target_position, target_orientation)
-                #print("Base : ", base_position, base_orientation)
 
                 local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
                     target_position,
@@ -179,14 +183,14 @@ class GoalValidation(RoaiBaseSample):
                     base_orientation
                 )
 
-            actions = self._controllers[i].forward(
-                target_index = self._current_target_index,
-                target_end_effector_position=local_pos,
-                target_end_effector_orientation=local_ori,
-            )
-            if self._planning_mode == 1:
+                actions = self._controllers[i].forward(
+                    target_index = self._current_target_index,
+                    target_end_effector_position=local_pos,
+                    target_end_effector_orientation=local_ori,
+                )
                 kps, kds = self._tasks[i].get_custom_gains()
                 self._articulation_controllers[i].set_gains(kps, kds)
+
             self._articulation_controllers[i].apply_action(actions)
         return
 
