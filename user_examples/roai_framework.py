@@ -48,7 +48,7 @@ class GoalValidation(RoaiBaseSample):
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
         self._target_reach_threshold = 0.05
         self._teleport_timeout = 3
-        self._planning_mode = 0         # 0: RMPflow, 1: RRT
+        self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
     
     #+++++ Scene build
@@ -68,7 +68,7 @@ class GoalValidation(RoaiBaseSample):
                 name=self._shared_target_name,
                 prim_path=self._shared_target_path,
                 position=np.array([0, 0, 0.7]),  # 초기 위치
-                color=np.array([0, 1, 0]),
+                color=np.array([0, 1, 0]),          # green
                 orientation=euler_angles_to_quat(np.array([0, 0, 0])),
                 height=0.05,                  
                 radius=0.02
@@ -76,6 +76,7 @@ class GoalValidation(RoaiBaseSample):
             world.scene.add(target)
 
         self._current_target_index = -1
+        self._reached_flag = False
         self._fsm_timer = None
         self._fsm_finished = False
 
@@ -93,6 +94,8 @@ class GoalValidation(RoaiBaseSample):
                     target_prim_path=self._shared_target_path,
                     target_name=self._shared_target_name
                 )
+
+            task.sample = self      # task나 controller에서 접근하기 위해 sample 변수 선언
 
             task._init_pose = self._robot_poses[i]
             world.add_task(task)
@@ -156,6 +159,8 @@ class GoalValidation(RoaiBaseSample):
             if self._planning_mode == 1:
                 for controller in self._controllers:
                     controller.reset()
+
+                self._reached_flag = False
 
         # robot 제어
         observations = self._world.get_observations()
