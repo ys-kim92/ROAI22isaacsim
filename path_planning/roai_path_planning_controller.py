@@ -62,7 +62,7 @@ class RoaiPathPlanningController(BaseController):
         return art_trajectory.get_action_sequence()
 
     def _make_new_plan(
-        self, target_end_effector_position: np.ndarray, target_end_effector_orientation: Optional[np.ndarray] = None
+        self, target_index: int, target_end_effector_position: np.ndarray, target_end_effector_orientation: Optional[np.ndarray] = None
     ) -> None:
         self._path_planner.set_end_effector_target(target_end_effector_position, target_end_effector_orientation)
         self._path_planner.update_world()
@@ -78,21 +78,24 @@ class RoaiPathPlanningController(BaseController):
         self._rrt_plan = self._path_planner.compute_path(start_pos, np.array([]))
 
         if self._rrt_plan is None or len(self._rrt_plan) <= 1:
-            carb.log_warn("No plan could be generated to target pose: " + str(target_end_effector_position))
+            # carb.log_warn(f"{self._robot.prim_path} cannot generate path for the goal #{target_index}")
+            print(f"    {self._robot.prim_path} cannot generate path for the goal #{target_index}")
             self._action_sequence = []
             return
 
-        print(len(self._rrt_plan))
-        
         self._action_sequence = self._convert_rrt_plan_to_trajectory(self._rrt_plan)
+        #carb.log_info(f"{self._robot.prim_path} can reach to the goal #{target_index} with trajectory steps: {self._action_sequence}")
+        print(f"[Success]   {self._robot.prim_path} can reach to the goal #{target_index} with steps: {len(self._action_sequence)}")
+
         self._last_solution = self._action_sequence[-1].joint_positions
 
+
     def forward(
-        self, target_end_effector_position: np.ndarray, target_end_effector_orientation: Optional[np.ndarray] = None
+        self, target_index: int, target_end_effector_position: np.ndarray, target_end_effector_orientation: Optional[np.ndarray] = None
     ) -> ArticulationAction:
         if self._action_sequence is None:
             # This will only happen the first time the forward function is used
-            self._make_new_plan(target_end_effector_position, target_end_effector_orientation)
+            self._make_new_plan(target_index, target_end_effector_position, target_end_effector_orientation)
 
         if len(self._action_sequence) == 0:
             # The plan is completed; return null action to remain in place
@@ -104,7 +107,8 @@ class RoaiPathPlanningController(BaseController):
                 final_positions, np.zeros_like(final_positions), joint_indices=self._action_sequence[0].joint_indices
             )
 
-        return self._action_sequence.pop(0)
+        #return self._action_sequence.pop(0)
+        return self._action_sequence[-1]
 
     def add_obstacle(self, obstacle: isaacsim.core.api.objects, static: bool = False) -> None:
         self._path_planner.add_obstacle(obstacle, static)
