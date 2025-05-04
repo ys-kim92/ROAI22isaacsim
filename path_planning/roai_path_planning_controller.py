@@ -86,6 +86,7 @@ class RoaiPathPlanningController(BaseController):
         self._action_sequence = self._convert_rrt_plan_to_trajectory(self._rrt_plan)
         #carb.log_info(f"{self._robot.prim_path} can reach to the goal #{target_index} with trajectory steps: {self._action_sequence}")
         print(f"[Success]   {self._robot.prim_path} can reach to the goal #{target_index} with steps: {len(self._action_sequence)}")
+        self._success_flag = True
 
         self._last_solution = self._action_sequence[-1].joint_positions
 
@@ -163,5 +164,7 @@ class FrankaRrtController(RoaiPathPlanningController):
             assert cspace_trajectory_generator._lula_kinematics.has_c_space_jerk_limit(i)
 
         visualizer = PathPlannerVisualizer(robot_articulation, rrt)
+
+        self._success_flag = False
 
         RoaiPathPlanningController.__init__(self, name, visualizer, cspace_trajectory_generator)

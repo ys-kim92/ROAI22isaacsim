@@ -192,7 +192,6 @@ class RoaiPathPlanningTask(BaseTask):
                 else:
                     if not self.sample._reached_flag:
                         self._target_visual_material.set_color(color=np.array([1.0, 0, 0]))   # red
-
         return
 
     def add_obstacle(self, position: np.ndarray = None, orientation=None):
@@ -303,7 +302,6 @@ class FrankaPathPlanningTask(RoaiPathPlanningTask):
         self._franka_prim_path = franka_prim_path
         self._franka_robot_name = franka_robot_name
         
-        #self._franka = None
         self._physics_sim_view = None
         return
     
@@ -314,7 +312,6 @@ class FrankaPathPlanningTask(RoaiPathPlanningTask):
         self._target = self.scene.get_object(self._target_name)
         self._task_objects[self._target_name] = self._target
         self._target_visual_material = self._target.get_applied_visual_material()
-        print(self._target_visual_material)
 
         self._robot = self.set_robot()
         self._task_objects[self._robot.name] = self._robot

@@ -18,9 +18,14 @@ class GoalRelated(RoaiBaseSample):
         self._current_target_index += 1
 
         if self._current_target_index >= self._num_of_goals:
-            self._fsm_finished = True
-            return
-
+            self._current_target_index = 0
+            self._current_robot_index += 1
+            
+            if self._current_robot_index >= self._num_of_tasks:
+                self._current_robot_index -= 1
+                self._fsm_finished = True
+                return
+            
         goal = self._goal_sequence[self._current_target_index]
         pos = np.array(goal["position"])
         rpy = np.array(goal["orientation"])
@@ -29,7 +34,6 @@ class GoalRelated(RoaiBaseSample):
         target = self._world.scene.get_object("shared_target")
         target.set_world_pose(position=pos, orientation=quat)
 
-        self._fsm_timer = self._world.current_time
         #carb.log_info(f"[FSM] Move to goal #{self._current_target_index} → pos: {pos}, rpy: {rpy}")
         print("--------------------------------------------------------")
         print(f"[FSM] Move to goal #{self._current_target_index} → pos: {pos}, rpy: {rpy}")
