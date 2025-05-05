@@ -12,7 +12,6 @@ import carb
 
 
 
-
 class GoalRelated(RoaiBaseSample):
     def _move_to_next_target(self):
         self._current_target_index += 1
@@ -31,7 +30,7 @@ class GoalRelated(RoaiBaseSample):
         rpy = np.array(goal["orientation"])
         quat = euler_angles_to_quat(rpy)        # wxyz로 만듦
 
-        target = self._world.scene.get_object("shared_target")
+        target = self._world.scene.get_object("SharedTarget")
         target.set_world_pose(position=pos, orientation=quat)
 
         #carb.log_info(f"[FSM] Move to goal #{self._current_target_index} → pos: {pos}, rpy: {rpy}")
@@ -51,13 +50,13 @@ class GoalRelated(RoaiBaseSample):
             rpy = np.array(entry["orientation"])  # roll, pitch, yaw
             quat = euler_angles_to_quat(rpy)
 
-            folder_path = "/World/GoalCubes"
+            folder_path = "/World/GoalList"
             if not is_prim_path_valid(folder_path):
                 create_prim(prim_path=folder_path, prim_type="Xform")
                 
             cube = VisualCuboid(
-                name=f"goal_{i}",
-                prim_path=f"{folder_path}/GoalCube_{i}",
+                name=f"Goal_{i}",
+                prim_path=f"{folder_path}/Goal_{i}",
                 position=pos,
                 orientation=quat,
                 color=np.array([0, 0, 0]),
