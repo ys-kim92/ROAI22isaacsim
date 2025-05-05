@@ -20,6 +20,7 @@ from isaacsim.core.utils.prims import is_prim_path_valid
 from isaacsim.core.utils.stage import get_stage_units
 from isaacsim.core.api.objects import VisualCuboid
 from isaacsim.core.api.objects import VisualCone
+import time
 
 
 #+++++ Custom 모듈
@@ -36,6 +37,14 @@ class GoalValidation(RoaiBaseSample):
         self._controllers = []
         self._articulation_controllers = []
         self._success_goal = {}
+        self._log_path = ""
+        self._current_robot_index = 0
+        self._current_target_index = -1
+        self._reached_flag = False
+        self._fsm_timer = None
+        self._ini_time_sim = 0
+        self._ini_time_real = 0
+        self._fsm_finished = False
 
         # 설정값
         self._log_freq = 10     # FPS/n
@@ -62,7 +71,7 @@ class GoalValidation(RoaiBaseSample):
         self._num_of_goals = len(self._goal_sequence)
 
         self._shared_target_path = "/World/SharedTarget"
-        self._shared_target_name = "shared_target"
+        self._shared_target_name = "SharedTarget"
 
         if not is_prim_path_valid(self._shared_target_path):
             target = VisualCone(
@@ -75,12 +84,6 @@ class GoalValidation(RoaiBaseSample):
                 radius=0.02
             )
             world.scene.add(target)
-
-        self._current_robot_index = 0
-        self._current_target_index = -1
-        self._reached_flag = False
-        self._fsm_timer = None
-        self._fsm_finished = False
 
         # 로봇 추가
         for i in range(self._num_of_tasks):
@@ -135,16 +138,25 @@ class GoalValidation(RoaiBaseSample):
 
     async def _on_task_event_async(self, val, log_path):
         world = self.get_world()
+        self._log_path = log_path
+
         if val:
             world.add_physics_callback("sim_step", self._physics_step)
             await world.play_async()
+            self._ini_time_sim = self._world.current_time
+            self._ini_time_real = time.time()
         else:
             world.remove_physics_callback("sim_step")
             DataIO._on_save_data_event(self,log_path)
+            print("+++++++ Goal validation stop +++++++")
+            self.world_cleanup()
         return
     
     def _physics_step(self, step_size):
         if self._fsm_finished:
+            DataIO._on_save_data_event(self, self._log_path)
+            print("+++++++ Goal validation finisih +++++++")
+            self.world_cleanup()
             return
     
         current_time = self._world.current_time
@@ -158,8 +170,8 @@ class GoalValidation(RoaiBaseSample):
         # robot 제어
         observations = self._world.get_observations()
 
-        target_position = observations["shared_target"]["position"]
-        target_orientation = observations["shared_target"]["orientation"]    # quaternian wxyz 순서
+        target_position = observations["SharedTarget"]["position"]
+        target_orientation = observations["SharedTarget"]["orientation"]    # quaternian wxyz 순서
 
         robot = self._robots[self._current_robot_index]
         controller = self._controllers[self._current_robot_index]
@@ -233,4 +245,6 @@ class GoalValidation(RoaiBaseSample):
         self._task_params = []
         self._controllers = []
         self._articulation_controllers = []
+        self._world.stop()
+        self._world.clear_all_callbacks()
         return
