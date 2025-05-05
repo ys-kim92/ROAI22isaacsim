@@ -100,7 +100,7 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
             dict = {
                 "label": "Output Directory",
                 "type": "stringfield",
-                "default_val": os.path.join(os.getcwd(), "output_data.json"),
+                "default_val": os.path.join(os.getcwd()),
                 "tooltip": "Output Directory",
                 "on_clicked_fn": None,
                 "use_folder_picker": False,

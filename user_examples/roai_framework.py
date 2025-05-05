@@ -35,6 +35,7 @@ class GoalValidation(RoaiBaseSample):
         self._task_params = []
         self._controllers = []
         self._articulation_controllers = []
+        self._success_goal = {}
 
         # 설정값
         self._log_freq = 10     # FPS/n
@@ -137,7 +138,6 @@ class GoalValidation(RoaiBaseSample):
         if val:
             world.add_physics_callback("sim_step", self._physics_step)
             await world.play_async()
-            DataIO._on_logging_event(self, self._log_freq)
         else:
             world.remove_physics_callback("sim_step")
             DataIO._on_save_data_event(self,log_path)
@@ -197,6 +197,7 @@ class GoalValidation(RoaiBaseSample):
         # shared target 위치 변경
         if controller._success_flag:
             if (current_time - self._fsm_timer > self._goal_move_timeout):
+                DataIO._on_logging_event(self)
                 GoalRelated._move_to_next_target(self)
 
                 if self._planning_mode == 1:
