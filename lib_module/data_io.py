@@ -1,36 +1,40 @@
 from isaacsim.examples.interactive.base_sample import RoaiBaseSample
+import os
+import json
 
 
 class DataIO(RoaiBaseSample):
-    def _on_logging_event(self, log_freq):
-        world = self.get_world()
-        data_logger = world.get_data_logger()
+    def _on_logging_event(self):
+        scene = self._world.scene
+        robot_key = f"robot #{self._current_robot_index}"
+        
+        if self._current_target_index == 0:
+            self._success_goal[robot_key] = []
 
-        if not world.get_data_logger().is_started():
-            def frame_logging_func(tasks, scene):               
-                data = {}
+        if robot_key not in self._success_goal:
+            self._success_goal[robot_key] = []
+            
+        # 로깅할 데이터
+        target_name = self._shared_target_name
+        target = scene.get_object(target_name)
+        target_pos, target_ori = target.get_world_pose()
 
-                for i, params in enumerate(self._task_params):
-                    target_name = params["target_name"]["value"]
-                    target = scene.get_object(target_name)
-                    target_pos, target_ori = target.get_world_pose()
-                    robot_name = params["robot_name"]["value"]
-                    robot = scene.get_object(robot_name)
-                    
-                    data[f"robot{i}_goal_position"] = target_pos.tolist()
-                    data[f"robot{i}_goal_orientation"] = target_ori.tolist()
-                    data[f"robot{i}_current_joint_positions"] = robot.get_joint_positions().tolist()
-                    data[f"robot{i}_applied_joint_positions"] = robot.get_applied_action().joint_positions.tolist()
+        goal_data = {
+            "goal_number": f"goal #{self._current_target_index}",
+            "goal_position": target_pos.tolist(),
+            "goal_orientation": target_ori.tolist()
+        }
+            
+        self._success_goal[robot_key].append(goal_data)
 
-                return data
-
-            data_logger.add_data_frame_logging_func(frame_logging_func)
-            data_logger.start()
 
 
     def _on_save_data_event(self, log_path):
-        world = self.get_world()
-        data_logger = world.get_data_logger()
-        data_logger.save(log_path=log_path)
-        data_logger.reset()
+        os.makedirs(log_path, exist_ok=True)
+        with open(os.path.join(log_path, "success_goal.json"), "w") as f:
+            json.dump(self._success_goal, f, indent=2)
+        
+        # 저장 후 버퍼 비움
+        self._success_goal.clear()
+        
         return
