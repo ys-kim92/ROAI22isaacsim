@@ -42,6 +42,7 @@ class GoalValidation(RoaiBaseSample):
         self._reached_flag = False
         self._any360_reached_flag = False
         self._goal_rotation_done = False
+        self._current_Z_rotation_angle = 0
         self._fsm_timer = None
         self._ini_time_sim = 0
         self._ini_time_real = 0
@@ -57,7 +58,7 @@ class GoalValidation(RoaiBaseSample):
             (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),  
         ]   # 추후 urdf에 robot initial position 입력받으면 필요없는 코드
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
-        self._target_360_resolution = 60     # deg
+        self._target_360_resolution = 180     # deg
         self._goal_move_timeout = 1
         self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
@@ -200,12 +201,8 @@ class GoalValidation(RoaiBaseSample):
 
         elif self._planning_mode == 1:
             # base_position, base_orientation = robot.get_world_pose()  # quaternian wxyz 순서
-
-            # yaw 360 테스트 (콜백 체인 처리)
-            initial_angle = 0
-            callback_name = f"rotation_step_{initial_angle}"
-            self.remove_physics_callback(callback_name)
-            self._world.add_physics_callback(callback_name, lambda step_size: self.goal_Z_rotation_callback(step_size, initial_angle))
+            if not self._goal_rotation_done:
+                self.goal_Z_rotation()
 
         if self._goal_rotation_done:
             # shared target 위치 변경
@@ -217,6 +214,7 @@ class GoalValidation(RoaiBaseSample):
                 self._reached_flag = False
                 self._any360_reached_flag = False
                 self._fsm_timer = current_time
+                self._current_Z_rotation_angle = 0
 
         return
 
@@ -240,14 +238,15 @@ class GoalValidation(RoaiBaseSample):
         self._world.clear_all_callbacks()
         return
     
-    def goal_Z_rotation_callback(self, step_size, angle):
-        print(f"Z rot angle: {angle}")
-        current_time = self._world.current_time
+    def goal_Z_rotation(self):
         # 회전 완료 조건
-        if angle >= 360:
+        if self._current_Z_rotation_angle >= 360:
             self._goal_rotation_done = True
             print("Rotation complete. Moving to next target.")
             return
+        
+        current_time = self._world.current_time
+        angle = self._current_Z_rotation_angle
 
         # 로봇 제어를 위한 기본 정보 가져오기
         robot = self._robots[self._current_robot_index]
@@ -280,19 +279,13 @@ class GoalValidation(RoaiBaseSample):
             self._any360_reached_flag = True
             if (current_time - self._fsm_timer > self._goal_move_timeout):
                 DataIO._on_logging_event(self, angle)
+                print(f"Z rot angle: {angle} - Success")
+                self._current_Z_rotation_angle = angle + self._target_360_resolution
 
-            self._controllers[self._current_robot_index].reset()
-            self._reached_flag = False
+                # self._controllers[self._current_robot_index].reset()
+                self._reached_flag = False
+                self._fsm_timer = current_time
+        else:
+            print(f"Z rot angle: {angle} - Fail")
+            self._current_Z_rotation_angle = angle + self._target_360_resolution
             self._fsm_timer = current_time
-            print("Rotation successful, moving to next angle.")
-
-        # 다음 콜백 예약 (한 프레임 후 호출)
-        next_angle = angle + self._target_360_resolution
-        callback_name = f"rotation_step_{next_angle}"
-        self.remove_physics_callback(callback_name)
-        self._world.add_physics_callback(callback_name, lambda step_size: self.goal_Z_rotation_callback(step_size, next_angle))
-
-    def remove_physics_callback(self, callback_name):
-        """Remove an existing physics callback if it exists."""
-        if self._world.physics_callback_exists(callback_name):
-            self._world.remove_physics_callback(callback_name)

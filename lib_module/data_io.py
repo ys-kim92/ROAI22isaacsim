@@ -21,7 +21,8 @@ class DataIO(RoaiBaseSample):
         target_pos, target_ori = target.get_world_pose()
 
         goal_data = {
-            "goal_number": f"Goal_{self._current_target_index}_Zrot_{angle}",
+            "goal_number": f"Goal_{self._current_target_index}",
+            "Z_rotation_angle": angle,
             "goal_position": target_pos.tolist(),
             "goal_orientation": target_ori.tolist()
         }
