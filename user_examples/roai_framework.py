@@ -21,7 +21,6 @@ from isaacsim.core.utils.stage import get_stage_units
 from isaacsim.core.api.objects import VisualCuboid
 from isaacsim.core.api.objects import VisualCone
 import time
-import asyncio
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
@@ -42,6 +41,7 @@ class GoalValidation(RoaiBaseSample):
         self._current_target_index = -1
         self._reached_flag = False
         self._any360_reached_flag = False
+        self._goal_rotation_done = False
         self._fsm_timer = None
         self._ini_time_sim = 0
         self._ini_time_real = 0
@@ -161,6 +161,7 @@ class GoalValidation(RoaiBaseSample):
             return
     
         current_time = self._world.current_time
+        self._goal_rotation_done = False
 
         # shared target 초기 위치
         if self._current_target_index == -1:
@@ -193,23 +194,20 @@ class GoalValidation(RoaiBaseSample):
                 self._any360_reached_flag = True
                 if (current_time - self._fsm_timer > self._goal_move_timeout):
                     DataIO._on_logging_event(self, 0)
-            
-            goal_rotation_done = True
+                    self._goal_rotation_done = True
+            else:
+                self._goal_rotation_done = True
 
         elif self._planning_mode == 1:
-            base_position, base_orientation = robot.get_world_pose()  # quaternian wxyz 순서
+            # base_position, base_orientation = robot.get_world_pose()  # quaternian wxyz 순서
 
-            # yaw 360 테스트 (비동기 처리)
-            goal_rotation_done = asyncio.create_task(self.async_rotation(
-                controller,
-                articulation_controller,
-                target_position,
-                target_orientation,
-                base_position,
-                base_orientation
-            ))
+            # yaw 360 테스트 (콜백 체인 처리)
+            initial_angle = 0
+            callback_name = f"rotation_step_{initial_angle}"
+            self.remove_physics_callback(callback_name)
+            self._world.add_physics_callback(callback_name, lambda step_size: self.goal_Z_rotation_callback(step_size, initial_angle))
 
-        if goal_rotation_done:
+        if self._goal_rotation_done:
             # shared target 위치 변경
             GoalRelated._move_to_next_target(self)
         
@@ -242,43 +240,59 @@ class GoalValidation(RoaiBaseSample):
         self._world.clear_all_callbacks()
         return
     
-    async def async_rotation(self, controller, articulation_controller, target_position, target_orientation, base_position, base_orientation):
-        # yaw 360 테스트
-        for angle in range(0, 360, self._target_360_resolution):
-            current_time = self._world.current_time
-            yaw_quat = euler_angles_to_quat(np.array([0, 0, np.radians(angle)]))
-            rotated_orientation = yaw_quat * target_orientation
+    def goal_Z_rotation_callback(self, step_size, angle):
+        print(f"Z rot angle: {angle}")
+        current_time = self._world.current_time
+        # 회전 완료 조건
+        if angle >= 360:
+            self._goal_rotation_done = True
+            print("Rotation complete. Moving to next target.")
+            return
 
-            # 로컬 좌표 변환
-            local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
-                target_position,
-                rotated_orientation,
-                base_position,
-                base_orientation
-            )
+        # 로봇 제어를 위한 기본 정보 가져오기
+        robot = self._robots[self._current_robot_index]
+        controller = self._controllers[self._current_robot_index]
+        articulation_controller = self._articulation_controllers[self._current_robot_index]
+        observations = self._world.get_observations()
+        target_position = observations["SharedTarget"]["position"]
+        target_orientation = observations["SharedTarget"]["orientation"]
+        base_position, base_orientation = robot.get_world_pose()
 
-            # 컨트롤러 동작
-            actions = controller.forward(
-                target_index=self._current_target_index,
-                target_end_effector_position=local_pos,
-                target_end_effector_orientation=local_ori,
-            )
-            kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
-            articulation_controller.set_gains(kps, kds)
-            articulation_controller.apply_action(actions)
-            print(f"Z rot angle: {angle}")
+        # 회전 각도 계산
+        yaw_quat = euler_angles_to_quat(np.array([0, 0, np.radians(angle)]))
+        rotated_orientation = yaw_quat * target_orientation
+        local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
+            target_position, rotated_orientation, base_position, base_orientation
+        )
 
-            # 성공 여부 체크
-            if controller._success_flag:
-                self._any360_reached_flag = True
-                if (current_time - self._fsm_timer > self._goal_move_timeout):
-                    DataIO._on_logging_event(self, angle)
+        # 컨트롤러 동작
+        actions = controller.forward(
+            target_index=self._current_target_index,
+            target_end_effector_position=local_pos,
+            target_end_effector_orientation=local_ori,
+        )
+        kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
+        articulation_controller.set_gains(kps, kds)
+        articulation_controller.apply_action(actions)
 
-            # 상태 초기화 및 다음 프레임 대기
+        # 성공 여부 체크
+        if controller._success_flag:
+            self._any360_reached_flag = True
+            if (current_time - self._fsm_timer > self._goal_move_timeout):
+                DataIO._on_logging_event(self, angle)
+
             self._controllers[self._current_robot_index].reset()
-            controller._success_flag = False
             self._reached_flag = False
             self._fsm_timer = current_time
-            await asyncio.sleep(0)  # 다음 프레임으로 넘어가기 위해 대기
+            print("Rotation successful, moving to next angle.")
 
-        return True
+        # 다음 콜백 예약 (한 프레임 후 호출)
+        next_angle = angle + self._target_360_resolution
+        callback_name = f"rotation_step_{next_angle}"
+        self.remove_physics_callback(callback_name)
+        self._world.add_physics_callback(callback_name, lambda step_size: self.goal_Z_rotation_callback(step_size, next_angle))
+
+    def remove_physics_callback(self, callback_name):
+        """Remove an existing physics callback if it exists."""
+        if self._world.physics_callback_exists(callback_name):
+            self._world.remove_physics_callback(callback_name)
