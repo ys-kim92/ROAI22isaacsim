@@ -41,6 +41,7 @@ class GoalValidation(RoaiBaseSample):
         self._current_robot_index = 0
         self._current_target_index = -1
         self._reached_flag = False
+        self._any360_reached_flag = False
         self._fsm_timer = None
         self._ini_time_sim = 0
         self._ini_time_real = 0
@@ -56,12 +57,12 @@ class GoalValidation(RoaiBaseSample):
             (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),  
         ]   # 추후 urdf에 robot initial position 입력받으면 필요없는 코드
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
-        self._target_reach_threshold = 0.05
+        self._target_360_resolution = 60     # deg
         self._goal_move_timeout = 1
         self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
     
-    #+++++ Scene build # commit test
+    #+++++ Scene build
 
     def setup_scene(self):
         world = self.get_world()
@@ -186,46 +187,63 @@ class GoalValidation(RoaiBaseSample):
                 target_end_effector_orientation=local_ori,
             )
 
+            articulation_controller.apply_action(actions)
+
+            if controller._success_flag:
+                self._any360_reached_flag = True
+                if (current_time - self._fsm_timer > self._goal_move_timeout):
+                    DataIO._on_logging_event(self, 0)
+                    GoalRelated._move_to_next_target(self)
+            else:
+                GoalRelated._move_to_next_target(self)
+
         elif self._planning_mode == 1:
             base_position, base_orientation = robot.get_world_pose()  # quaternian wxyz 순서
 
-            local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
-                target_position,
-                target_orientation,
-                base_position,
-                base_orientation
-            )
+            # yaw 360 테스트
+            for angle in range(0,360, self._target_360_resolution):
+                current_time = self._world.current_time
+                yaw_quat = euler_angles_to_quat(np.array([0, 0, np.radians(angle)]))
+                rotated_orientation = yaw_quat * target_orientation
 
-            actions = controller.forward(
-                target_index = self._current_target_index,
-                target_end_effector_position=local_pos,
-                target_end_effector_orientation=local_ori,
-            )
-            kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
-            articulation_controller.set_gains(kps, kds)
+                local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
+                    target_position,
+                    rotated_orientation,
+                    base_position,
+                    base_orientation
+                )
 
-        articulation_controller.apply_action(actions)
+                actions = controller.forward(
+                    target_index = self._current_target_index,
+                    target_end_effector_position=local_pos,
+                    target_end_effector_orientation=local_ori,
+                )
+                kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
+                articulation_controller.set_gains(kps, kds)
 
-        # shared target 위치 변경
-        if controller._success_flag:
-            if (current_time - self._fsm_timer > self._goal_move_timeout):
-                DataIO._on_logging_event(self)
-                GoalRelated._move_to_next_target(self)
+                articulation_controller.apply_action(actions)
+                print(f"Z rot angle: {angle}")
+                      
+                # 성공하면 저장
+                if controller._success_flag:
+                    self._any360_reached_flag = True
+                    if (current_time - self._fsm_timer > self._goal_move_timeout):
+                        DataIO._on_logging_event(self, angle)
 
-                if self._planning_mode == 1:
-                    self._controllers[self._current_robot_index].reset()
-                    controller._success_flag = False
-                    self._reached_flag = False
-                    self._fsm_timer = current_time
-
-        else:
-            GoalRelated._move_to_next_target(self)
-            
-            if self._planning_mode == 1:
                 self._controllers[self._current_robot_index].reset()
                 controller._success_flag = False
                 self._reached_flag = False
                 self._fsm_timer = current_time
+
+        # shared target 위치 변경
+        GoalRelated._move_to_next_target(self)
+        
+        if self._planning_mode == 1:
+            self._controllers[self._current_robot_index].reset()
+            controller._success_flag = False
+            self._reached_flag = False
+            self._any360_reached_flag = False
+            self._fsm_timer = current_time
 
         return
 
