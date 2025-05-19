@@ -61,7 +61,7 @@ class GoalValidation(RoaiBaseSample):
         self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
     
-    #+++++ Scene build
+    #+++++ Scene build # commit test
 
     def setup_scene(self):
         world = self.get_world()
