@@ -21,7 +21,7 @@ from isaacsim.core.utils.stage import get_stage_units
 from isaacsim.core.api.objects import VisualCuboid
 from isaacsim.core.api.objects import VisualCone
 import time
-
+import asyncio
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
@@ -193,57 +193,32 @@ class GoalValidation(RoaiBaseSample):
                 self._any360_reached_flag = True
                 if (current_time - self._fsm_timer > self._goal_move_timeout):
                     DataIO._on_logging_event(self, 0)
-                    GoalRelated._move_to_next_target(self)
-            else:
-                GoalRelated._move_to_next_target(self)
+            
+            goal_rotation_done = True
 
         elif self._planning_mode == 1:
             base_position, base_orientation = robot.get_world_pose()  # quaternian wxyz 순서
 
-            # yaw 360 테스트
-            for angle in range(0,360, self._target_360_resolution):
-                current_time = self._world.current_time
-                yaw_quat = euler_angles_to_quat(np.array([0, 0, np.radians(angle)]))
-                rotated_orientation = yaw_quat * target_orientation
+            # yaw 360 테스트 (비동기 처리)
+            goal_rotation_done = asyncio.create_task(self.async_rotation(
+                controller,
+                articulation_controller,
+                target_position,
+                target_orientation,
+                base_position,
+                base_orientation
+            ))
 
-                local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
-                    target_position,
-                    rotated_orientation,
-                    base_position,
-                    base_orientation
-                )
-
-                actions = controller.forward(
-                    target_index = self._current_target_index,
-                    target_end_effector_position=local_pos,
-                    target_end_effector_orientation=local_ori,
-                )
-                kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
-                articulation_controller.set_gains(kps, kds)
-
-                articulation_controller.apply_action(actions)
-                print(f"Z rot angle: {angle}")
-                      
-                # 성공하면 저장
-                if controller._success_flag:
-                    self._any360_reached_flag = True
-                    if (current_time - self._fsm_timer > self._goal_move_timeout):
-                        DataIO._on_logging_event(self, angle)
-
+        if goal_rotation_done:
+            # shared target 위치 변경
+            GoalRelated._move_to_next_target(self)
+        
+            if self._planning_mode == 1:
                 self._controllers[self._current_robot_index].reset()
                 controller._success_flag = False
                 self._reached_flag = False
+                self._any360_reached_flag = False
                 self._fsm_timer = current_time
-
-        # shared target 위치 변경
-        GoalRelated._move_to_next_target(self)
-        
-        if self._planning_mode == 1:
-            self._controllers[self._current_robot_index].reset()
-            controller._success_flag = False
-            self._reached_flag = False
-            self._any360_reached_flag = False
-            self._fsm_timer = current_time
 
         return
 
@@ -266,3 +241,44 @@ class GoalValidation(RoaiBaseSample):
         self._world.stop()
         self._world.clear_all_callbacks()
         return
+    
+    async def async_rotation(self, controller, articulation_controller, target_position, target_orientation, base_position, base_orientation):
+        # yaw 360 테스트
+        for angle in range(0, 360, self._target_360_resolution):
+            current_time = self._world.current_time
+            yaw_quat = euler_angles_to_quat(np.array([0, 0, np.radians(angle)]))
+            rotated_orientation = yaw_quat * target_orientation
+
+            # 로컬 좌표 변환
+            local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
+                target_position,
+                rotated_orientation,
+                base_position,
+                base_orientation
+            )
+
+            # 컨트롤러 동작
+            actions = controller.forward(
+                target_index=self._current_target_index,
+                target_end_effector_position=local_pos,
+                target_end_effector_orientation=local_ori,
+            )
+            kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
+            articulation_controller.set_gains(kps, kds)
+            articulation_controller.apply_action(actions)
+            print(f"Z rot angle: {angle}")
+
+            # 성공 여부 체크
+            if controller._success_flag:
+                self._any360_reached_flag = True
+                if (current_time - self._fsm_timer > self._goal_move_timeout):
+                    DataIO._on_logging_event(self, angle)
+
+            # 상태 초기화 및 다음 프레임 대기
+            self._controllers[self._current_robot_index].reset()
+            controller._success_flag = False
+            self._reached_flag = False
+            self._fsm_timer = current_time
+            await asyncio.sleep(0)  # 다음 프레임으로 넘어가기 위해 대기
+
+        return True
