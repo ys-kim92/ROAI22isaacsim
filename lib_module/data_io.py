@@ -8,7 +8,7 @@ import time
 
 
 class DataIO(RoaiBaseSample):
-    def _on_logging_event(self):
+    def _on_logging_event(self, angle):
         scene = self._world.scene
         robot_key = f"robot #{self._current_robot_index}"
 
@@ -21,7 +21,7 @@ class DataIO(RoaiBaseSample):
         target_pos, target_ori = target.get_world_pose()
 
         goal_data = {
-            "goal_number": f"Goal_{self._current_target_index}",
+            "goal_number": f"Goal_{self._current_target_index}_Zrot_{angle}",
             "goal_position": target_pos.tolist(),
             "goal_orientation": target_ori.tolist()
         }
