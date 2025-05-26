@@ -2,7 +2,7 @@ from isaacsim.examples.interactive.base_sample import RoaiBaseSample
 import os
 import json
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, Counter
 from isaacsim.core.utils.rotations import euler_angles_to_quat
 import time
 
@@ -48,7 +48,7 @@ class DataIO(RoaiBaseSample):
 
         unique_goal_numbers = set()
         robot_goal_counts = {}
-        robot_goal_lists = defaultdict(set) # 중복 제거를 위해 set 사용
+        robot_goal_counters = defaultdict(Counter) # 각 로봇별 goal_number 카운트 저장
 
 
         # 결과 분석
@@ -62,7 +62,7 @@ class DataIO(RoaiBaseSample):
                 goal_number = goal["goal_number"]
 
                 unique_goal_numbers.add(goal_number)
-                robot_goal_lists[robot_key].add(goal_number)
+                robot_goal_counters[robot_key][goal_number] += 1
 
                 # scene에 반영
                 target = self._world.scene.get_object(goal_number)      # prim_path가 아닌 name 찾음
@@ -79,7 +79,9 @@ class DataIO(RoaiBaseSample):
         print(f"* Total calculation time - real (MM:SS): {int(m_real):02d}:{int(s_real):02d}")
         print(f"                         - sim  (MM:SS): {int(m_sim):02d}:{int(s_sim):02d}")
 
-        for robot_key, goal_set in robot_goal_lists.items():
+        for robot_key, goal_set in robot_goal_counters.items():
             robot_goal_counts[robot_key] = len(goal_set)
             print(f"* Success goals for each {robot_key}: {robot_goal_counts[robot_key]} goals")
-            print(f"    {sorted(list(goal_set))}")
+            
+            goal_list_with_counts = [f"{goal}({count})" for goal, count in sorted(goal_set.items())]
+            print(f"    {goal_list_with_counts}")

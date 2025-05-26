@@ -9,6 +9,7 @@
 
 import asyncio
 import os
+import carb.settings
 
 import omni.ext
 import omni.ui as ui
@@ -86,6 +87,9 @@ class GoalValidationUI(RoaiBaseSampleUITemplate):
         return
 
     def post_load_button_event(self):
+        settings = carb.settings.get_settings()
+        settings.set("/rtx/rendermode", "PathTracing")
+
         self.task_ui_elements["Start"].enabled = True
         return
 
