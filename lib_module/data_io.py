@@ -48,7 +48,7 @@ class DataIO(RoaiBaseSample):
 
         unique_goal_numbers = set()
         robot_goal_counts = {}
-        robot_goal_lists = defaultdict(list)
+        robot_goal_lists = defaultdict(set) # 중복 제거를 위해 set 사용
 
 
         # 결과 분석
@@ -58,13 +58,11 @@ class DataIO(RoaiBaseSample):
         m_real, s_real = divmod(working_duration_real, 60)
 
         for robot_key, goal_list in self._success_goal.items():
-            robot_goal_counts[robot_key] = len(goal_list)
-
             for goal in goal_list:
                 goal_number = goal["goal_number"]
 
                 unique_goal_numbers.add(goal_number)
-                robot_goal_lists[robot_key].append(goal_number)
+                robot_goal_lists[robot_key].add(goal_number)
 
                 # scene에 반영
                 target = self._world.scene.get_object(goal_number)      # prim_path가 아닌 name 찾음
@@ -81,6 +79,7 @@ class DataIO(RoaiBaseSample):
         print(f"* Total calculation time - real (MM:SS): {int(m_real):02d}:{int(s_real):02d}")
         print(f"                         - sim  (MM:SS): {int(m_sim):02d}:{int(s_sim):02d}")
 
-        for robot_key, goal_list in self._success_goal.items():
+        for robot_key, goal_set in robot_goal_lists.items():
+            robot_goal_counts[robot_key] = len(goal_set)
             print(f"* Success goals for each {robot_key}: {robot_goal_counts[robot_key]} goals")
-            print(f"    {robot_goal_lists[robot_key]}")
+            print(f"    {sorted(list(goal_set))}")
