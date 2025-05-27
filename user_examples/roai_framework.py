@@ -58,7 +58,7 @@ class GoalValidation(RoaiBaseSample):
             (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),  
         ]   # 추후 urdf에 robot initial position 입력받으면 필요없는 코드
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
-        self._target_360_resolution = 180     # deg
+        self._target_360_resolution = 90     # deg
         self._goal_move_timeout = 1
         self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
@@ -264,27 +264,40 @@ class GoalValidation(RoaiBaseSample):
         observations = self._world.get_observations()
         target_position = observations["SharedTarget"]["position"]
         target_orientation = observations["SharedTarget"]["orientation"]
-        print(target_orientation)
         base_position, base_orientation = robot.get_world_pose()
 
-        # 회전 각도 계산
-        yaw_quat = euler_angles_to_quat(np.array([0,0,0]))
-        # rotated_orientation = self.quaternion_multiply(yaw_quat, target_orientation)
-        rotated_orientation = target_orientation
-        print(rotated_orientation)
         local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
-            target_position, rotated_orientation, base_position, base_orientation
+            target_position, target_orientation, base_position, base_orientation
         )
 
         # local_ori 보정 (이론상 그대로 가야 맞는데, 지금 franka hand 좌표계로 인해 y축 기준 180도 뒤집어야 함)
         y_axis_rotation = euler_angles_to_quat(np.array([0, np.pi, 0]))
         rotated_local_ori = self.quaternion_multiply(y_axis_rotation, local_ori)
 
+
+        # 회전 각도 계산
+        yaw_rotation = euler_angles_to_quat(np.array([np.radians(angle),0,0]))
+        rotated_orientation = self.quaternion_multiply(yaw_rotation, rotated_local_ori)
+        # local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
+        #     target_position, rotated_orientation, base_position, base_orientation
+        # )
+
+        # # shared target GUI 업데이트
+        # goal = self._goal_sequence[self._current_target_index]
+        # pos = np.array(goal["position"])
+        # rpy = np.array(goal["orientation"])
+        # quat = euler_angles_to_quat(rpy)        # wxyz로 만듦
+
+        # target = self._world.scene.get_object("SharedTarget")
+        # target.set_world_pose(position=pos, orientation=local_ori)
+
+        
+
         # 컨트롤러 동작
         actions = controller.forward(
             target_index=self._current_target_index,
             target_end_effector_position=local_pos,
-            target_end_effector_orientation=rotated_local_ori,
+            target_end_effector_orientation=rotated_orientation,
         )
         kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
         articulation_controller.set_gains(kps, kds)
@@ -298,10 +311,12 @@ class GoalValidation(RoaiBaseSample):
                 print(f"Z rot angle: {angle} - Success")
                 self._current_Z_rotation_angle = angle + self._target_360_resolution
 
-                # self._controllers[self._current_robot_index].reset()
+                self._controllers[self._current_robot_index].reset()
                 self._reached_flag = False
                 self._fsm_timer = current_time
         else:
             print(f"Z rot angle: {angle} - Fail")
             self._current_Z_rotation_angle = angle + self._target_360_resolution
+
+            # self._controllers[self._current_robot_index].reset()
             self._fsm_timer = current_time
