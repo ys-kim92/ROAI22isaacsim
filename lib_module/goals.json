@@ -1,122 +1,122 @@
 [
   {
     "position": [0.95, -0.34, 0.77],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, 0.26, 0.58],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, -0.72, 0.82],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, 0.68, 0.40],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, -0.15, 0.33],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, -0.01, 0.88],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, 0.39, 0.50],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, 0.74, 0.86],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, -0.61, 0.29],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, -0.44, 0.66],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, 0.13, 0.76],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, -0.78, 0.37],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, 0.58, 0.21],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, 0.00, 0.31],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [0.95, -0.27, 0.42],
-    "orientation": [0.0, -1.5708, 0.0]
+    "orientation": [0.0, 1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.34, 0.77],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, 0.26, 0.58],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.72, 0.82],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, 0.68, 0.40],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.15, 0.33],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.01, 0.88],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, 0.39, 0.50],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, 0.74, 0.86],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.61, 0.29],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.44, 0.66],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, 0.13, 0.76],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.78, 0.37],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, 0.58, 0.21],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, 0.00, 0.31],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   },
   {
     "position": [-0.95, -0.27, 0.42],
-    "orientation": [0.0, 1.5708, 0.0]
+    "orientation": [0.0, -1.5708, 0.0]
   }
 ]

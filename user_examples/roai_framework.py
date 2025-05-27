@@ -238,6 +238,15 @@ class GoalValidation(RoaiBaseSample):
         self._world.clear_all_callbacks()
         return
     
+    def quaternion_multiply(self, q1, q2):
+        w1, x1, y1, z1 = q1
+        w2, x2, y2, z2 = q2
+        w = w1*w2 - x1*x2 - y1*y2 - z1*z2
+        x = w1*x2 + x1*w2 + y1*z2 - z1*y2
+        y = w1*y2 - x1*z2 + y1*w2 + z1*x2
+        z = w1*z2 + x1*y2 - y1*x2 + z1*w2
+        return np.array([w, x, y, z])
+    
     def goal_Z_rotation(self):
         # 회전 완료 조건
         if self._current_Z_rotation_angle >= 360:
@@ -255,20 +264,27 @@ class GoalValidation(RoaiBaseSample):
         observations = self._world.get_observations()
         target_position = observations["SharedTarget"]["position"]
         target_orientation = observations["SharedTarget"]["orientation"]
+        print(target_orientation)
         base_position, base_orientation = robot.get_world_pose()
 
         # 회전 각도 계산
-        yaw_quat = euler_angles_to_quat(np.array([0, 0, np.radians(angle)]))
-        rotated_orientation = yaw_quat * target_orientation
+        yaw_quat = euler_angles_to_quat(np.array([0,0,0]))
+        # rotated_orientation = self.quaternion_multiply(yaw_quat, target_orientation)
+        rotated_orientation = target_orientation
+        print(rotated_orientation)
         local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
             target_position, rotated_orientation, base_position, base_orientation
         )
+
+        # local_ori 보정 (이론상 그대로 가야 맞는데, 지금 franka hand 좌표계로 인해 y축 기준 180도 뒤집어야 함)
+        y_axis_rotation = euler_angles_to_quat(np.array([0, np.pi, 0]))
+        rotated_local_ori = self.quaternion_multiply(y_axis_rotation, local_ori)
 
         # 컨트롤러 동작
         actions = controller.forward(
             target_index=self._current_target_index,
             target_end_effector_position=local_pos,
-            target_end_effector_orientation=local_ori,
+            target_end_effector_orientation=rotated_local_ori,
         )
         kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
         articulation_controller.set_gains(kps, kds)
