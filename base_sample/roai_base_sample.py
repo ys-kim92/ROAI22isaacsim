@@ -52,16 +52,16 @@ class RoaiBaseSample(object):
 
     async def reset_async(self):
         """Function called when clicking reset buttton"""
-        if self._world.is_tasks_scene_built() and len(self._current_tasks) > 0:
-            self._world.remove_physics_callback("tasks_step")
+        # if self._world.is_tasks_scene_built() and len(self._current_tasks) > 0:
+        #     self._world.remove_physics_callback("tasks_step")
         await self._world.play_async()
         await update_stage_async()
         await self.setup_pre_reset()
         await self._world.reset_async()
         await self._world.pause_async()
         await self.setup_post_reset()
-        if self._world.is_tasks_scene_built() and len(self._current_tasks) > 0:
-            self._world.add_physics_callback("tasks_step", self._world.step_async)
+        # if self._world.is_tasks_scene_built() and len(self._current_tasks) > 0:
+        #     self._world.add_physics_callback("tasks_step", self._world.step_async)
         return
 
     @abstractmethod

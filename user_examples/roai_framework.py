@@ -109,7 +109,7 @@ class GoalValidation(RoaiBaseSample):
         return
 
     async def setup_post_load(self):
-        # 로봇별 셋업
+        # 로봇별 task 셋업
         for i in range(self._num_of_tasks):
             task = self._world.get_task(name="task" + str(i))
             self._tasks.append(task)
@@ -218,14 +218,17 @@ class GoalValidation(RoaiBaseSample):
 
         return
 
-    #+++++ Reset 버튼 동작 후 실행, 추후 업데이트 필요
+    #+++++ Reset 버튼 관련 실행
 
     async def setup_pre_reset(self):
         world = self.get_world()
         if world.physics_callback_exists("sim_step"):
             world.remove_physics_callback("sim_step")
-            for i in range(len(self._controllers)):
-                self._controllers[i].reset()
+        return
+    
+    async def setup_post_reset(self):
+        # reset 후 task 재설정, start 가능
+        await self.setup_post_load()
         return
 
     def world_cleanup(self):
