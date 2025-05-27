@@ -209,7 +209,7 @@ class GoalValidation(RoaiBaseSample):
             GoalRelated._move_to_next_target(self)
         
             if self._planning_mode == 1:
-                self._controllers[self._current_robot_index].reset()
+                controller.reset()
                 controller._success_flag = False
                 self._reached_flag = False
                 self._any360_reached_flag = False
@@ -234,7 +234,14 @@ class GoalValidation(RoaiBaseSample):
         self._task_params = []
         self._controllers = []
         self._articulation_controllers = []
+        self._current_robot_index = 0
+        self._current_target_index = -1
+        self._reached_flag = False
+        self._any360_reached_flag = False
+        self._goal_rotation_done = False
+        self._current_Z_rotation_angle = 0
+
         self._world.stop()
         self._world.clear_all_callbacks()
+ 
         return
-        

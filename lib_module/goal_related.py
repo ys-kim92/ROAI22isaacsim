@@ -89,14 +89,14 @@ class GoalRelated(RoaiBaseSample):
                 print(f"Z rot angle: {angle} - Success")
                 self._current_Z_rotation_angle = angle + self._target_360_resolution
 
-                self._controllers[self._current_robot_index].reset()
+                controller.reset()
                 self._reached_flag = False
                 self._fsm_timer = current_time
         else:
             print(f"Z rot angle: {angle} - Fail")
             self._current_Z_rotation_angle = angle + self._target_360_resolution
 
-            # self._controllers[self._current_robot_index].reset()
+            controller.reset()
             self._fsm_timer = current_time
 
     @staticmethod
