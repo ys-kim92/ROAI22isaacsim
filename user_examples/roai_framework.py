@@ -25,28 +25,25 @@ import time
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
 from isaacsim.examples.interactive.lib_module.goal_related import *
+from isaacsim.examples.interactive.lib_module.ROAI_config import settings
 
 
 class GoalValidation(RoaiBaseSample):
     def __init__(self) -> None:
         super().__init__()
-        self._robots = []
-        self._tasks = []
-        self._task_params = []
-        self._controllers = []
-        self._articulation_controllers = []
-        self._success_goal = {}
-        self._log_path = ""
-        self._current_robot_index = 0
-        self._current_target_index = -1
-        self._reached_flag = False
-        self._any360_reached_flag = False
-        self._goal_rotation_done = False
-        self._current_Z_rotation_angle = 0
-        self._fsm_timer = None
-        self._ini_time_sim = 0
-        self._ini_time_real = 0
-        self._fsm_finished = False
+
+        # 상태 초기화
+        for key, value in settings["default_state"].items():
+            setattr(self, key, value)
+
+         # 설정 초기화
+        config = settings["configuration"]
+        self._log_freq = config["log_freq"]
+        self._robot_poses = config["robot_poses"]
+        self._num_of_tasks = len(self._robot_poses)
+        self._target_360_resolution = config["target_360_resolution"]
+        self._goal_move_timeout = config["goal_move_timeout"]
+        self._planning_mode = config["planning_mode"]
 
         # 설정값
         self._log_freq = 10     # FPS/n
