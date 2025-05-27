@@ -21,49 +21,52 @@ from isaacsim.core.utils.stage import get_stage_units
 from isaacsim.core.api.objects import VisualCuboid
 from isaacsim.core.api.objects import VisualCone
 import time
+import json
 
 #+++++ Custom 모듈
 from isaacsim.examples.interactive.lib_module.data_io import DataIO
 from isaacsim.examples.interactive.lib_module.goal_related import *
-from isaacsim.examples.interactive.lib_module.ROAI_config import settings
+from isaacsim.examples.interactive.lib_module.default_config import RoaiDefaultConfig
 
 
 class GoalValidation(RoaiBaseSample):
     def __init__(self) -> None:
         super().__init__()
 
-        # 상태 초기화
-        for key, value in settings["default_state"].items():
+        # 파라미터 초기화
+        default_config = RoaiDefaultConfig()
+        
+        for key, value in default_config.__dict__.items():
             setattr(self, key, value)
 
-         # 설정 초기화
-        config = settings["configuration"]
-        self._log_freq = config["log_freq"]
-        self._robot_poses = config["robot_poses"]
-        self._num_of_tasks = len(self._robot_poses)
-        self._target_360_resolution = config["target_360_resolution"]
-        self._goal_move_timeout = config["goal_move_timeout"]
-        self._planning_mode = config["planning_mode"]
-
-        # 설정값
-        self._log_freq = 10     # FPS/n
+        # 아래부터는 추후 urdf에서 robot initial position 입력받으면 필요없는 코드
         self._robot_poses = [
             # pos                 # rot (yaw) -> quaternion
             (np.array([1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),      
             (np.array([1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, np.pi]))),     
             (np.array([-1.5, 0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),    
             (np.array([-1.5, -0.8, 0]), euler_angles_to_quat(np.array([0, 0, 0]))),  
-        ]   # 추후 urdf에 robot initial position 입력받으면 필요없는 코드
+        ]   
         self._num_of_tasks = len(self._robot_poses)  # 로봇 대수
-        self._target_360_resolution = 90     # deg
-        self._goal_move_timeout = 1
-        self._planning_mode = 1         # 0: RMPflow, 1: RRT
         return
     
     #+++++ Scene build
 
     def setup_scene(self):
         world = self.get_world()
+
+        # 상세 config override
+        base_dir = os.path.dirname(__file__)
+        override_config_file = os.path.join(base_dir, "..", "lib_module", "override_config.json")
+        abs_path = os.path.abspath(override_config_file)
+
+        with open(abs_path, "r") as f:
+            update_config = json.load(f)
+
+        for key, value in update_config.items():
+            target_key = f"_{key}"
+            if hasattr(self, target_key) and (target_key not in RoaiDefaultConfig.PROTECTED):
+                setattr(self, target_key, value)
 
         # goal 추가
         self._goal_sequence = GoalRelated._visualize_every_goals(world.scene, filename="goals.json")
