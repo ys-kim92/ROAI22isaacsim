@@ -266,38 +266,23 @@ class GoalValidation(RoaiBaseSample):
         target_orientation = observations["SharedTarget"]["orientation"]
         base_position, base_orientation = robot.get_world_pose()
 
-        local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
-            target_position, target_orientation, base_position, base_orientation
-        )
-
         # local_ori 보정 (이론상 그대로 가야 맞는데, 지금 franka hand 좌표계로 인해 y축 기준 180도 뒤집어야 함)
         y_axis_rotation = euler_angles_to_quat(np.array([0, np.pi, 0]))
-        rotated_local_ori = self.quaternion_multiply(y_axis_rotation, local_ori)
+        rotated_local_ori = self.quaternion_multiply(y_axis_rotation, target_orientation)
 
+        # 회전 각도 계산 
+        yaw_rotation = euler_angles_to_quat(np.array([0,0,np.radians(angle)]))
+        rotated_orientation = self.quaternion_multiply(rotated_local_ori,yaw_rotation)
 
-        # 회전 각도 계산
-        yaw_rotation = euler_angles_to_quat(np.array([np.radians(angle),0,0]))
-        rotated_orientation = self.quaternion_multiply(yaw_rotation, rotated_local_ori)
-        # local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
-        #     target_position, rotated_orientation, base_position, base_orientation
-        # )
-
-        # # shared target GUI 업데이트
-        # goal = self._goal_sequence[self._current_target_index]
-        # pos = np.array(goal["position"])
-        # rpy = np.array(goal["orientation"])
-        # quat = euler_angles_to_quat(rpy)        # wxyz로 만듦
-
-        # target = self._world.scene.get_object("SharedTarget")
-        # target.set_world_pose(position=pos, orientation=local_ori)
-
-        
+        local_pos, local_ori = GoalRelated._transform_goal_to_local_frame(
+            target_position, rotated_orientation, base_position, base_orientation
+        )
 
         # 컨트롤러 동작
         actions = controller.forward(
             target_index=self._current_target_index,
             target_end_effector_position=local_pos,
-            target_end_effector_orientation=rotated_orientation,
+            target_end_effector_orientation=local_ori,
         )
         kps, kds = self._tasks[self._current_robot_index].get_custom_gains()
         articulation_controller.set_gains(kps, kds)
